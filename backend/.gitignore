@@ -1,0 +1,107 @@
+# Compilación de Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo lock (descomenta si es una aplicación, no una librería)
+# Cargo.lock
+
+# Archivos de caché de Cargo
+.cargo/
+**/.cargo/
+
+# Archivos generados por rustfmt
+**/*.rs.fmt
+
+# Archivos de IDE
+# VSCode
+.vscode/
+*.code-workspace
+
+# IntelliJ / CLion / RustRover
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# Sistema Operativo
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+
+# Linux
+*~
+
+# Variables de entorno y configuración sensible
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+*.log
+logs/
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Backups
+*.bak
+*.backup
+
+# Testing
+coverage/
+*.profraw
+*.profdata
+
+# Documentación generada
+/target/doc/
+
+# Binarios compilados en modo release
+/target/release/
+
+# Archivos de configuración local
+config.local.toml
+config.local.yml
+
+# Certificados SSL (si usas HTTPS en desarrollo)
+*.pem
+*.key
+*.crt
+
+# Docker
+docker-compose.override.yml
+
+# Temporal
+tmp/
+temp/
+*.tmp
