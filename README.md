@@ -1,7 +1,7 @@
 # KronosTech – Tienda Virtual de Equipos Tecnológicos
 
 <p align="center">
-  <img src="https://img.icons8.com/?size=512&id=21278&format=png" width="120"/>
+  <img src="documentacion/assets/images/favicon.svg" alt="KronosTech Logo" width="200"/>
 </p>
 
 <p align="center">
