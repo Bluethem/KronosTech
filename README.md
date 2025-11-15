@@ -149,16 +149,16 @@ http://localhost:5173
 
 ---
 
-# Documentación Completa
+# Documentación
 
 Toda la documentación está organizada en carpetas:
 
 ### Requisitos
 
-* [1. Descripción del Proyecto](./documentacion/1-requisitos/1.1-descripcion.md)
-* [2. Requerimientos Funcionales](./documentacion/1-requisitos/1.2-requisitos-funcionales.md)
-* [3. Requerimientos No Funcionales](./documentacion/1-requisitos/1.3-requisitos-no-funcionales.md)
-* [4. Casos de Uso](./documentacion/1-requisitos/1.4-casos-de-uso.md)
+* [Descripción del Proyecto](./documentacion/1-requisitos/1.1-descripcion.md)
+* [Requerimientos Funcionales](./documentacion/1-requisitos/1.2-requisitos-funcionales.md)
+* [Requerimientos No Funcionales](./documentacion/1-requisitos/1.3-requisitos-no-funcionales.md)
+* [Casos de Uso](./documentacion/1-requisitos/1.4-casos-de-uso.md)
 
 ### Diseño del Sistema
 
