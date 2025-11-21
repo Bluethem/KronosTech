@@ -8,6 +8,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";  -- Para búsqueda difusa
+CREATE EXTENSION IF NOT EXISTS unaccent;    -- Para generar slugs sin tildes
 
 -- ============================================================================
 -- TIPOS ENUMERADOS (ENUMS)
@@ -1223,7 +1224,7 @@ CREATE INDEX idx_venta_fecha_estado ON venta(fecha_pedido, estado_pago)
 WHERE estado_pago = 'completado';
 
 -- Índice para productos más vendidos
-CREATE INDEX idx_producto_detalle_mas_vendidos ON producto_detalle(total_vendidos DESC, valoracion_promedio DESC)
+CREATE INDEX idx_producto_detalle_mas_vendidos ON producto_detalle(total_vendidos DESC, precio_venta DESC)
 WHERE estado = 'activo';
 
 -- ============================================================================
@@ -1248,7 +1249,8 @@ CREATE POLICY venta_propia ON venta
 -- COMENTARIOS FINALES
 -- ============================================================================
 
-COMMENT ON DATABASE current_database() IS 'E-commerce de componentes de PC - Base de datos principal';
+COMMENT ON DATABASE ecommerce_db IS 'E-commerce de componentes de PC - Base de datos principal';
+
 
 -- ============================================================================
 -- FIN DEL SCRIPT

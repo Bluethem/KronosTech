@@ -1,14 +1,16 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
     response::IntoResponse,
+    Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 
-use crate::repositories::ProductoFilters;
-use crate::services::CatalogoService;
+use crate::{
+    config::AppState,
+    repositories::ProductoFilters,
+    services::CatalogoService,
+};
 
 // ==================== RESPONSES ====================
 #[derive(Debug, Serialize)]
@@ -67,9 +69,9 @@ pub struct SubcategoriaQuery {
 
 /// GET /api/familias - Obtener todas las familias
 pub async fn get_familias(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_familias(&pool).await {
+    match CatalogoService::get_familias(&state.db).await {
         Ok(familias) => Ok(Json(ApiResponse {
             success: true,
             data: Some(familias),
@@ -81,10 +83,10 @@ pub async fn get_familias(
 
 /// GET /api/categorias - Obtener categorías (con filtro opcional por familia)
 pub async fn get_categorias(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Query(params): Query<CategoriaQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_categorias(&pool, params.familia).await {
+    match CatalogoService::get_categorias(&state.db, params.familia).await {
         Ok(categorias) => Ok(Json(ApiResponse {
             success: true,
             data: Some(categorias),
@@ -96,10 +98,10 @@ pub async fn get_categorias(
 
 /// GET /api/subcategorias - Obtener subcategorías (con filtro opcional por categoría)
 pub async fn get_subcategorias(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Query(params): Query<SubcategoriaQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_subcategorias(&pool, params.categoria).await {
+    match CatalogoService::get_subcategorias(&state.db, params.categoria).await {
         Ok(subcategorias) => Ok(Json(ApiResponse {
             success: true,
             data: Some(subcategorias),
@@ -111,9 +113,9 @@ pub async fn get_subcategorias(
 
 /// GET /api/marcas - Obtener todas las marcas
 pub async fn get_marcas(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_marcas(&pool).await {
+    match CatalogoService::get_marcas(&state.db).await {
         Ok(marcas) => Ok(Json(ApiResponse {
             success: true,
             data: Some(marcas),
@@ -125,7 +127,7 @@ pub async fn get_marcas(
 
 /// GET /api/productos - Obtener productos con filtros
 pub async fn get_productos(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Query(params): Query<ProductoQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let filters = ProductoFilters {
@@ -148,7 +150,7 @@ pub async fn get_productos(
     let limit = filters.limit.unwrap_or(20);
     let offset = filters.offset.unwrap_or(0);
 
-    match CatalogoService::get_productos(&pool, filters).await {
+    match CatalogoService::get_productos(&state.db, filters).await {
         Ok((productos, total)) => {
             let total_pages = (total as f64 / limit as f64).ceil() as i64;
             let current_page = (offset / limit) as i64 + 1;
@@ -171,10 +173,10 @@ pub async fn get_productos(
 
 /// GET /api/productos/:id - Obtener producto por ID
 pub async fn get_producto_by_id(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Path(id): Path<i32>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_producto_by_id(&pool, id).await {
+    match CatalogoService::get_producto_by_id(&state.db, id).await {
         Ok(Some(producto)) => Ok(Json(ApiResponse {
             success: true,
             data: Some(producto),
@@ -187,10 +189,10 @@ pub async fn get_producto_by_id(
 
 /// GET /api/productos/slug/:slug - Obtener producto por slug
 pub async fn get_producto_by_slug(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Path(slug): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_producto_by_slug(&pool, &slug).await {
+    match CatalogoService::get_producto_by_slug(&state.db, &slug).await {
         Ok(Some(producto)) => Ok(Json(ApiResponse {
             success: true,
             data: Some(producto),
@@ -203,10 +205,10 @@ pub async fn get_producto_by_slug(
 
 /// GET /api/productos/:id/valoraciones - Obtener valoraciones de un producto
 pub async fn get_valoraciones(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Path(id): Path<i32>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match CatalogoService::get_valoraciones(&pool, id).await {
+    match CatalogoService::get_valoraciones(&state.db, id).await {
         Ok(valoraciones) => Ok(Json(ApiResponse {
             success: true,
             data: Some(valoraciones),

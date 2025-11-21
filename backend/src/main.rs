@@ -13,8 +13,8 @@ use axum::{
     },
     Router,
 };
-use config::{DatabaseConfig, Settings};
-use routes::catalogo_routes;
+use config::{AppState, DatabaseConfig, Settings};
+use routes::{auth_routes, catalogo_routes};
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -33,6 +33,7 @@ async fn main() {
     println!("✅ Database connected successfully");
 
     let pool = db_config.pool().clone();
+    let app_state = AppState::new(pool, settings.jwt_secret.clone());
 
     // Configurar CORS
     let cors = CorsLayer::new()
@@ -41,9 +42,14 @@ async fn main() {
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE])
         .allow_credentials(true);
 
+    let catalogo_router = catalogo_routes();
+
     // Construir rutas
     let app = Router::new()
-        .nest("/api", catalogo_routes(pool))
+        .nest("/api", catalogo_router.clone())
+        .nest("/api/catalogo", catalogo_router)
+        .nest("/api/auth", auth_routes())
+        .with_state(app_state)
         .layer(cors);
 
     let addr = settings.server_address();
@@ -56,6 +62,8 @@ async fn main() {
     println!("   GET  /api/productos");
     println!("   GET  /api/productos/{{id}}");
     println!("   GET  /api/productos/slug/{{slug}}");
+    println!("   POST /api/auth/login");
+    println!("   POST /api/auth/register");
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)

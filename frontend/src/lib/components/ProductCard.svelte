@@ -1,14 +1,35 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { Producto } from '$lib/services/api';
+  import { addItemToCart } from '$lib/services/cart';
   import { ShoppingCart } from 'lucide-svelte';
 
   export let producto: Producto;
-  
+
   const imagenPlaceholder = 'https://placehold.co/400x300/1e293b/94a3b8?text=Producto';
-  
-  $: descuento = producto.descuento_porcentaje 
+
+  $: descuento = producto.descuento_porcentaje
     ? Math.round(((producto.precio_base - producto.precio_venta) / producto.precio_base) * 100)
     : null;
+
+  let isAdding = false;
+
+  async function handleAddToCart(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (producto.stock_disponible === 0 || isAdding) return;
+
+    try {
+      isAdding = true;
+      await addItemToCart(producto.id_producto_detalle, 1);
+      goto('/carrito');
+    } catch (err) {
+      console.error('No se pudo añadir al carrito desde ProductCard:', err);
+    } finally {
+      isAdding = false;
+    }
+  }
 </script>
 
 <a 
@@ -71,16 +92,22 @@
       </div>
     </div>
 
-    <button 
-      class="flex w-full min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/20 dark:bg-primary/30 text-primary text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary hover:text-white transition-colors gap-2"
-      disabled={producto.stock_disponible === 0}
-      on:click|preventDefault={(e) => {
-        e.stopPropagation();
-        console.log('Agregar al carrito:', producto.nombre);
-      }}
+    <button
+      class="flex w-full min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/20 dark:bg-primary/30 text-primary text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary hover:text-white transition-colors gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={producto.stock_disponible === 0 || isAdding}
+      aria-busy={isAdding}
+      on:click={handleAddToCart}
     >
       <ShoppingCart size={18} />
-      <span class="truncate">{producto.stock_disponible === 0 ? 'Agotado' : 'Agregar al Carrito'}</span>
+      <span class="truncate">
+        {#if producto.stock_disponible === 0}
+          Agotado
+        {:else if isAdding}
+          Añadiendo...
+        {:else}
+          Agregar al Carrito
+        {/if}
+      </span>
     </button>
   </div>
 </a>

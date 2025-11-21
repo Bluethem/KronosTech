@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE producto_detalle SET vistas = vistas + 1 WHERE id_producto_detalle = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "12c4204848da1d5d08ab64374567f3536b0ded04aae0c3f04e43a40bc9c5f9b9"
+}

@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                v.id_valoracion,\n                v.id_producto,\n                v.id_usuario,\n                v.id_producto_detalle,\n                v.calificacion,\n                v.titulo,\n                v.comentario,\n                v.compra_verificada,\n                v.votos_util,\n                v.votos_no_util,\n                v.aprobado,\n                v.fecha_creacion,\n                u.nombre as usuario_nombre,\n                u.apellido as usuario_apellido,\n                COALESCE(\n                    (SELECT array_agg(url_imagen ORDER BY orden) \n                     FROM imagen_valoracion \n                     WHERE id_valoracion = v.id_valoracion), \n                    ARRAY[]::TEXT[]\n                ) as imagenes\n            FROM valoracion v\n            INNER JOIN usuario u ON v.id_usuario = u.id_usuario\n            WHERE v.id_producto = $1\n              AND v.aprobado = TRUE\n            ORDER BY v.fecha_creacion DESC\n            LIMIT 50\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id_valoracion",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "id_producto",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "id_usuario",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "id_producto_detalle",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "calificacion",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "titulo",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "comentario",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "compra_verificada",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "votos_util",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "votos_no_util",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "aprobado",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "fecha_creacion",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 12,
+        "name": "usuario_nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "usuario_apellido",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "imagenes",
+        "type_info": "VarcharArray"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "73866c0f5b70db1f3793473644b04bfadb56e87867558c255eb1ee0c35cf9397"
+}

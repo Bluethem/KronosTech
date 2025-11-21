@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 axum = "0.8.6"
 bcrypt = "0.17.1"
+anyhow = "1.0"
 dotenv = "0.15.0"
 jsonwebtoken = "9.3"
 serde = { version = "1.0.228", features = ["derive"] }

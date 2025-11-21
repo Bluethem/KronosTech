@@ -1,9 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { theme, toggleTheme } from '$lib/stores/theme';
   import { searchHistory } from '$lib/stores/searchHistory';
   import { catalogoService } from '$lib/services/api';
+  import { authStore, logout } from '$lib/stores/auth';
   import { ShoppingCart, User, Heart, Search, Sun, Moon, Menu, Clock, X } from 'lucide-svelte';
   import logo from '$lib/assets/favicon.svg';
   
@@ -13,6 +15,9 @@
   let autocompleteResults: any[] = [];
   let searchTimeout: number;
   let searchInputRef: HTMLDivElement;
+  let userMenuOpen = false;
+  let userMenuRef: HTMLDivElement;
+  let userButtonRef: HTMLButtonElement;
   
   $: isDark = $theme === 'dark';
   
@@ -52,8 +57,19 @@
   }
   
   function handleClickOutside(event: MouseEvent) {
-    if (searchInputRef && !searchInputRef.contains(event.target as Node)) {
+    const target = event.target as Node;
+    if (searchInputRef && !searchInputRef.contains(target)) {
       showAutocomplete = false;
+    }
+
+    if (
+      userMenuOpen &&
+      userMenuRef &&
+      !userMenuRef.contains(target) &&
+      userButtonRef &&
+      !userButtonRef.contains(target)
+    ) {
+      userMenuOpen = false;
     }
   }
   
@@ -69,6 +85,33 @@
     showAutocomplete = true;
   } else {
     autocompleteResults = [];
+  }
+
+  const getUserInitials = (n?: string | null, l?: string | null) => {
+    const nameInitial = n?.[0]?.toUpperCase() ?? '';
+    const lastInitial = l?.[0]?.toUpperCase() ?? '';
+    return (nameInitial + lastInitial || 'U').trim().slice(0, 2);
+  };
+
+  function handleUserClick() {
+    if ($authStore.user) {
+      userMenuOpen = !userMenuOpen;
+      return;
+    }
+
+    const target = $page?.url?.pathname + $page?.url?.search;
+    const redirectTo = target && target !== '/' ? target : '/cuenta';
+    goto(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
+  }
+
+  function handleLogout() {
+    logout();
+    userMenuOpen = false;
+    goto('/');
+  }
+
+  function handleCartClick() {
+    goto('/carrito');
   }
 </script>
 
@@ -177,9 +220,46 @@
       </button>
 
       <!-- Usuario -->
-      <button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
-        <User size={20} />
-      </button>
+      <div class="relative">
+        <button
+          bind:this={userButtonRef}
+          on:click={handleUserClick}
+          class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
+        >
+          {#if $authStore.user}
+            <span class="inline-flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+              {getUserInitials($authStore.user?.nombre, $authStore.user?.apellido)}
+            </span>
+          {:else}
+            <User size={20} />
+          {/if}
+        </button>
+
+        {#if userMenuOpen && $authStore.user}
+          <div
+            bind:this={userMenuRef}
+            class="absolute right-0 mt-2 w-56 rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark shadow-xl z-50"
+          >
+            <div class="px-4 py-3 border-b border-border-light/60 dark:border-border-dark/60">
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">
+                {$authStore.user.nombre} {$authStore.user.apellido}
+              </p>
+              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{$authStore.user.email}</p>
+            </div>
+            <div class="flex flex-col py-2">
+              <button class="px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800" on:click={() => goto('/cuenta')}>
+                Mi cuenta
+              </button>
+              <button class="px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800" on:click={() => goto('/cuenta/pedidos')}>
+                Mis pedidos
+              </button>
+              <button class="px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" on:click={handleLogout}>
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
 
       <!-- Favoritos -->
       <button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
@@ -187,7 +267,10 @@
       </button>
 
       <!-- Carrito -->
-      <button class="relative flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+      <button
+        on:click={handleCartClick}
+        class="relative flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
+      >
         <ShoppingCart size={20} />
         <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">0</span>
       </button>

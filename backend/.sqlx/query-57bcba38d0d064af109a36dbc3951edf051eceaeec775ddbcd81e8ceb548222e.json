@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT \n                    c.id_categoria,\n                    c.nombre,\n                    c.descripcion,\n                    c.icono,\n                    c.slug,\n                    c.id_familia,\n                    f.nombre as \"familia_nombre?\",\n                    COUNT(DISTINCT pd.id_producto_detalle) as \"total_productos?\"\n                FROM categoria c\n                INNER JOIN familia f ON c.id_familia = f.id_familia\n                LEFT JOIN producto p ON c.id_categoria = p.id_categoria\n                LEFT JOIN producto_detalle pd ON p.id_producto = pd.id_producto AND pd.estado = 'activo'\n                WHERE c.estado = 'activo'\n                GROUP BY c.id_categoria, f.nombre\n                ORDER BY c.orden\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id_categoria",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "descripcion",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "icono",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "id_familia",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "familia_nombre?",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "total_productos?",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "57bcba38d0d064af109a36dbc3951edf051eceaeec775ddbcd81e8ceb548222e"
+}

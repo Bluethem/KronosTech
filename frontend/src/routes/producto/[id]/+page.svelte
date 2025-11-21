@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { catalogoService, type ProductoDetalle, type Valoracion } from '$lib/services/api';
+	import { addItemToCart } from '$lib/services/cart';
 	import { ShoppingCart, Heart, Truck, Shield, Star, Minus, Plus, ThumbsUp, BadgeCheck } from 'lucide-svelte';
 	
 	let producto: ProductoDetalle | null = null;
@@ -11,6 +13,7 @@
 	let error: string | null = null;
 	let cantidad = 1;
 	let imagenSeleccionada = 0;
+	let addingToCart = false;
 	let tabActiva: 'especificaciones' | 'descripcion' | 'resenas' = 'especificaciones';
 	
 	$: productId = parseInt($page.params.id || '0');
@@ -74,9 +77,17 @@
 		}
 	}
 	
-	function agregarAlCarrito() {
-		console.log('Agregar al carrito:', producto?.nombre, 'Cantidad:', cantidad);
-		// TODO: Implementar carrito
+	async function agregarAlCarrito() {
+		if (!producto) return;
+		try {
+			addingToCart = true;
+			await addItemToCart(producto.id_producto_detalle, cantidad);
+			goto('/carrito');
+		} catch (err) {
+			console.error('No se pudo añadir al carrito:', err);
+		} finally {
+			addingToCart = false;
+		}
 	}
 	
 	onMount(() => {

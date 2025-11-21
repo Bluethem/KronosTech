@@ -2,12 +2,14 @@ use axum::{
     routing::get,
     Router,
 };
-use sqlx::PgPool;
 
-use crate::handlers::catalogo_handler::*;
+use crate::{
+    config::AppState,
+    handlers::catalogo_handler::*,
+};
 
 /// Rutas públicas del catálogo (sin autenticación)
-pub fn catalogo_routes(pool: PgPool) -> Router {
+pub fn catalogo_routes() -> Router<AppState> {
     Router::new()
         // Familias, Categorías, Subcategorías, Marcas
         .route("/familias", get(get_familias))
@@ -20,6 +22,4 @@ pub fn catalogo_routes(pool: PgPool) -> Router {
         .route("/productos/slug/{slug}", get(get_producto_by_slug))
         .route("/productos/{id}", get(get_producto_by_id))
         .route("/productos/{id}/valoraciones", get(get_valoraciones))
-        
-        .with_state(pool)
 }

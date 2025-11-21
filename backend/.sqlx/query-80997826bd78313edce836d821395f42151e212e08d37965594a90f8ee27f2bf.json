@@ -1,0 +1,178 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                pd.id_producto_detalle,\n                pd.nombre,\n                pd.descripcion,\n                pd.modelo,\n                pd.sku,\n                pd.slug,\n                m.nombre as marca,\n                m.logo as marca_logo,\n                CAST(pd.precio_base AS FLOAT8) as \"precio_base?\",\n                CAST(pd.precio_venta AS FLOAT8) as \"precio_venta?\",\n                CASE \n                    WHEN pd.descuento_adicional_activo THEN CAST(pd.descuento_adicional_porcentaje AS FLOAT8)\n                    ELSE NULL\n                END as \"descuento_porcentaje?\",\n                pd.imagen_principal,\n                pd.imagenes,\n                CAST(pd.peso AS FLOAT8) as \"peso?\",\n                pd.garantia_meses as \"garantia_meses?\",\n                pd.total_vendidos as \"total_vendidos?\",\n                pd.es_destacado as \"es_destacado?\",\n                pd.es_nuevo as \"es_nuevo?\",\n                pd.es_oferta as \"es_oferta?\",\n                COALESCE(i.cantidad_disponible, 0) as \"stock_disponible?\",\n                CASE \n                    WHEN i.cantidad_disponible = 0 OR i.cantidad_disponible IS NULL THEN 'agotado'\n                    WHEN i.cantidad_disponible < i.cantidad_minima THEN 'bajo'\n                    ELSE 'disponible'\n                END as \"stock_estado?\",\n                p.nombre as producto_nombre,\n                p.slug as producto_slug,\n                c.nombre as categoria_nombre,\n                p.especificaciones_base,\n                CAST(p.valoracion_promedio AS FLOAT8) as \"valoracion_promedio?\",\n                p.total_valoraciones as \"total_valoraciones?\"\n            FROM producto_detalle pd\n            INNER JOIN producto p ON pd.id_producto = p.id_producto\n            INNER JOIN marca m ON pd.id_marca = m.id_marca\n            INNER JOIN categoria c ON p.id_categoria = c.id_categoria\n            LEFT JOIN inventario i ON pd.id_producto_detalle = i.id_producto_detalle\n            WHERE pd.id_producto_detalle = $1 AND pd.estado = 'activo'\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id_producto_detalle",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "descripcion",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "modelo",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "marca",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "marca_logo",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "precio_base?",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 9,
+        "name": "precio_venta?",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 10,
+        "name": "descuento_porcentaje?",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 11,
+        "name": "imagen_principal",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "imagenes",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 13,
+        "name": "peso?",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 14,
+        "name": "garantia_meses?",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "total_vendidos?",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 16,
+        "name": "es_destacado?",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 17,
+        "name": "es_nuevo?",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 18,
+        "name": "es_oferta?",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 19,
+        "name": "stock_disponible?",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 20,
+        "name": "stock_estado?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 21,
+        "name": "producto_nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 22,
+        "name": "producto_slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 23,
+        "name": "categoria_nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 24,
+        "name": "especificaciones_base",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 25,
+        "name": "valoracion_promedio?",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 26,
+        "name": "total_valoraciones?",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      null,
+      null,
+      null,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      false,
+      true,
+      false,
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "80997826bd78313edce836d821395f42151e212e08d37965594a90f8ee27f2bf"
+}

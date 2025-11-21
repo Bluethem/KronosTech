@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { catalogoService, type Producto, type Familia, type Categoria, type Subcategoria } from '$lib/services/api';
+	import { addItemToCart } from '$lib/services/cart';
 	import { Filter, ChevronDown, X, Grid3x3, List, ShoppingCart, Star, CheckCircle } from 'lucide-svelte';
 	
 	let productos: Producto[] = [];
@@ -32,6 +33,7 @@
 	// UI state
 	let vistaLista = true;
 	let filtrosMovilAbiertos = false;
+	let addingProductId: number | null = null;
 	
 	// Paginación
 	let currentPage = 1;
@@ -116,6 +118,20 @@
 		} else {
 			subcategorias = [];
 			subcategoriaSeleccionada = null;
+		}
+	}
+
+	async function handleAddToCart(productoId: number) {
+		if (addingProductId === productoId) return;
+
+		try {
+			addingProductId = productoId;
+			await addItemToCart(productoId, 1);
+			goto('/carrito');
+		} catch (err) {
+			console.error('No se pudo añadir al carrito desde el catálogo:', err);
+		} finally {
+			addingProductId = null;
 		}
 	}
 
@@ -498,13 +514,12 @@
 										<p class="text-sm line-through text-slate-500 mb-4">S/. {producto.precio_base.toFixed(2)}</p>
 									{/if}
 									<button 
-										class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white font-bold py-2.5 px-6 rounded-lg hover:bg-primary/90 transition-colors"
-										on:click|preventDefault|stopPropagation={() => {
-											console.log('Agregar al carrito:', producto.nombre);
-										}}
+										class="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white font-bold py-2.5 px-6 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										disabled={addingProductId === producto.id_producto_detalle || producto.stock_disponible === 0}
+										on:click|preventDefault|stopPropagation={() => handleAddToCart(producto.id_producto_detalle)}
 									>
 										<ShoppingCart size={18} />
-										Añadir
+										{addingProductId === producto.id_producto_detalle ? 'Añadiendo…' : 'Añadir'}
 									</button>
 								</div>
 							</a>
@@ -538,13 +553,12 @@
 										{/if}
 									</div>
 									<button 
-										class="w-full flex items-center justify-center gap-2 bg-primary/20 text-primary font-bold py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-colors"
-										on:click|preventDefault|stopPropagation={() => {
-											console.log('Agregar al carrito:', producto.nombre);
-										}}
+										class="w-full flex items-center justify-center gap-2 bg-primary/20 text-primary font-bold py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										disabled={addingProductId === producto.id_producto_detalle || producto.stock_disponible === 0}
+										on:click|preventDefault|stopPropagation={() => handleAddToCart(producto.id_producto_detalle)}
 									>
 										<ShoppingCart size={16} />
-										Agregar
+										{addingProductId === producto.id_producto_detalle ? 'Añadiendo…' : 'Agregar'}
 									</button>
 								</div>
 							</a>
