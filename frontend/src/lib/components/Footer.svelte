@@ -93,9 +93,11 @@
 			<div>
 				<div class="flex items-center gap-2 mb-4">
 					<div class="size-8 text-primary">
-						<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-							<path clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" fill="currentColor" fill-rule="evenodd"></path>
-						</svg>
+						<img
+							src="/src/lib/assets/apple-touch-icon.png"
+							alt="Icono"
+							class="h-9 w-9 object-contain"
+						/>
 					</div>
 					<h3 class="font-bold text-xl text-primary">KronosTech</h3>
 				</div>
