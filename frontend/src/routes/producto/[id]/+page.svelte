@@ -129,7 +129,7 @@
 		<main class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mt-4">
 			<!-- Galería de Imágenes -->
 			<div class="flex flex-col gap-4">
-				<div class="w-full bg-white dark:bg-surface-dark rounded-xl shadow-sm aspect-[4/3] max-h-[500px] flex items-center justify-center p-6 overflow-hidden">
+				<div class="w-full rounded-xl shadow-sm aspect-[4/3] max-h-[500px] flex items-center justify-center p-6 overflow-hidden">
 					<img 
 						src={imagenes[imagenSeleccionada]} 
 						alt={producto.nombre}
@@ -177,7 +177,7 @@
 				</div>
 
 				<!-- Precio y Stock -->
-				<div class="flex flex-col gap-4 p-4 bg-slate-100 dark:bg-surface-dark rounded-xl">
+				<div class="flex flex-col gap-4 p-4 rounded-xl border border-border-light dark:border-border-dark">
 					<div class="flex items-baseline gap-3">
 						<p class="text-4xl font-bold">S/. {producto.precio_venta.toFixed(2)}</p>
 						{#if producto.precio_base > producto.precio_venta}
@@ -327,7 +327,7 @@
 				{:else if tabActiva === 'descripcion'}
 					<!-- Descripción del Producto -->
 					<div class="prose dark:prose-invert max-w-none">
-						<div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-lg mb-4">
+						<div class="p-6 rounded-lg mb-4 border border-border-light dark:border-border-dark">
 							<h3 class="text-lg font-bold mb-3 text-primary">Información del Producto</h3>
 							<p class="text-slate-700 dark:text-slate-300 leading-relaxed mb-4">
 								<strong>{producto.marca} {producto.producto_nombre || producto.nombre}</strong> es un producto de alta calidad 
@@ -498,7 +498,7 @@
 								{/each}
 							</div>
 						{:else if !loadingValoraciones && producto.total_valoraciones === 0}
-							<div class="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+							<div class="text-center py-8 rounded-lg border border-border-light dark:border-border-dark">
 								<p class="text-slate-600 dark:text-slate-400">
 									Aún no hay reseñas para este producto.
 								</p>

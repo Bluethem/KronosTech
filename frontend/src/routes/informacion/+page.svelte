@@ -72,7 +72,7 @@
 	
 	<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
 		<aside class="lg:col-span-1">
-			<div class="sticky top-24 bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark p-4">
+			<div class="sticky top-24 rounded-lg border border-border-light dark:border-border-dark p-4">
 				<h3 class="font-bold text-lg mb-4">Contenido</h3>
 				<nav class="space-y-2">
 					{#each secciones as seccion}
@@ -182,7 +182,7 @@
 				</div>
 				
 				<div class="space-y-4 not-prose">
-					<details class="group bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
+					<details class="group rounded-lg border border-border-light dark:border-border-dark">
 						<summary class="px-6 py-4 cursor-pointer font-semibold flex items-center justify-between">
 							¿Los productos son originales?
 							<ChevronRight size={20} class="group-open:rotate-90 transition-transform" />
@@ -192,7 +192,7 @@
 						</div>
 					</details>
 					
-					<details class="group bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
+					<details class="group rounded-lg border border-border-light dark:border-border-dark">
 						<summary class="px-6 py-4 cursor-pointer font-semibold flex items-center justify-between">
 							¿Cuánto demora el envío?
 							<ChevronRight size={20} class="group-open:rotate-90 transition-transform" />
@@ -202,7 +202,7 @@
 						</div>
 					</details>
 					
-					<details class="group bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
+					<details class="group rounded-lg border border-border-light dark:border-border-dark">
 						<summary class="px-6 py-4 cursor-pointer font-semibold flex items-center justify-between">
 							¿Qué métodos de pago aceptan?
 							<ChevronRight size={20} class="group-open:rotate-90 transition-transform" />

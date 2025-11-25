@@ -149,7 +149,7 @@
 					</div>
 					<select 
 						bind:value={ordenamiento}
-						class="py-2 px-4 rounded-lg bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark text-sm font-medium focus:ring-2 focus:ring-primary/50"
+						class="py-2 px-4 rounded-lg border border-border-light dark:border-border-dark text-sm font-medium focus:ring-2 focus:ring-primary/50"
 					>
 						<option value="relevancia">Más Relevantes</option>
 						<option value="precio_asc">Precio: Menor a Mayor</option>
@@ -295,7 +295,7 @@
 									{#each familias as familia}
 										<a 
 											href="/catalogo?familia={familia.id_familia}"
-											class="flex flex-col items-center justify-center gap-3 p-6 bg-surface-light dark:bg-surface-dark rounded-lg text-center hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors border border-border-light dark:border-border-dark"
+											class="flex flex-col items-center justify-center gap-3 p-6 rounded-lg text-center hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors border border-border-light dark:border-border-dark"
 										>
 											<div class="text-4xl">🏷️</div>
 											<p class="font-semibold text-sm">{@html highlightText(familia.nombre, terminoBusqueda)}</p>
@@ -335,7 +335,7 @@
 									{#each marcas as marca}
 										<a 
 											href="/catalogo?marca={marca.id_marca}"
-											class="flex flex-col items-center justify-center p-6 bg-surface-light dark:bg-surface-dark rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors border border-border-light dark:border-border-dark"
+											class="flex flex-col items-center justify-center p-6 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors border border-border-light dark:border-border-dark"
 										>
 											<p class="font-bold text-lg">{@html highlightText(marca.nombre, terminoBusqueda)}</p>
 											{#if marca.pais_origen}
@@ -385,7 +385,7 @@
 		<!-- Sidebar -->
 		<aside class="w-full lg:w-72 flex-shrink-0">
 			<div class="sticky top-24">
-				<div class="bg-surface-light dark:bg-surface-dark rounded-lg p-6 border border-border-light dark:border-border-dark">
+				<div class="rounded-lg p-6 border border-border-light dark:border-border-dark">
 					<h3 class="text-lg font-bold mb-4">Búsquedas Populares</h3>
 					<ul class="space-y-3">
 						{#each busquedasPopulares as busqueda}

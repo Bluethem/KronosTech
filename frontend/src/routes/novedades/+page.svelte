@@ -345,7 +345,7 @@
 			{/if}
 			
 			<!-- Toolbar -->
-			<div class="flex flex-wrap items-center justify-between gap-4 p-4 mb-6 bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark">
+			<div class="flex flex-wrap items-center justify-between gap-4 p-4 mb-6 rounded-lg border border-border-light dark:border-border-dark">
 				<div class="flex items-center gap-4">
 					<p class="text-sm text-slate-600 dark:text-slate-400">
 						<span class="font-bold text-purple-600 dark:text-purple-400">{totalProductos}</span> novedades

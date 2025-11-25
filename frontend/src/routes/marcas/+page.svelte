@@ -160,7 +160,7 @@
 			{#each marcasFiltradas as marca}
 				<a
 					href="/catalogo?marca={marca.id_marca}"
-					class="group relative bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
+					class="group relative border border-border-light dark:border-border-dark rounded-xl overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300"
 				>
 					<!-- Imagen/Logo -->
 					<div class="aspect-square bg-cover bg-center relative overflow-hidden"

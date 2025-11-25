@@ -72,7 +72,7 @@
   }
 </script>
 
-<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-10 py-3 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm">
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-10 py-3 backdrop-blur-sm">
   <div class="flex items-center gap-8">
     <a href="/" class="flex items-center gap-3 text-text-light dark:text-text-dark">
       <img src={logo} alt="KronosTech Logo" class="size-8" />

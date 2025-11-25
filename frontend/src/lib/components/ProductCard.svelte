@@ -13,7 +13,7 @@
 
 <a 
   href="/producto/{producto.id_producto_detalle}"
-  class="flex h-full flex-1 flex-col gap-4 rounded-xl bg-surface-light dark:bg-surface-dark shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"
+  class="flex h-full flex-1 flex-col gap-4 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"
 >
   <div class="relative w-full bg-center bg-no-repeat aspect-video bg-cover flex flex-col overflow-hidden">
     <img 

@@ -248,21 +248,21 @@
 	<!-- Banner de Garantía/Envíos -->
 	<section class="mb-16">
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-			<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl text-center">
+			<div class="p-6 rounded-xl text-center">
 				<div class="text-4xl mb-3">🚚</div>
 				<h3 class="font-bold text-lg mb-2">Envío Gratis</h3>
 				<p class="text-sm text-slate-600 dark:text-slate-400">
 					En compras mayores a S/. 200
 				</p>
 			</div>
-			<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl text-center">
+			<div class="p-6 rounded-xl text-center">
 				<div class="text-4xl mb-3">🛡️</div>
 				<h3 class="font-bold text-lg mb-2">Garantía Oficial</h3>
 				<p class="text-sm text-slate-600 dark:text-slate-400">
 					Todos nuestros productos con garantía
 				</p>
 			</div>
-			<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl text-center">
+			<div class="p-6 rounded-xl text-center">
 				<div class="text-4xl mb-3">💳</div>
 				<h3 class="font-bold text-lg mb-2">Pago Seguro</h3>
 				<p class="text-sm text-slate-600 dark:text-slate-400">

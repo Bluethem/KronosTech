@@ -39,9 +39,10 @@
 	}
 </script>
 
-<footer class="bg-surface-light dark:bg-surface-dark mt-16 border-t border-border-light dark:border-border-dark">
+
+<footer class="mt-16 border-t border-border-light dark:border-border-dark">
 	<!-- Newsletter Section -->
-	<div class="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 border-b border-border-light dark:border-border-dark">
+	<div class="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-background-dark dark:to-background-dark border-b border-border-light dark:border-border-dark">
 		<div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
 			<div class="flex flex-col md:flex-row items-center justify-between gap-6">
 				<div class="text-center md:text-left">
@@ -173,14 +174,14 @@
 					</h4>
 					<div class="flex flex-wrap items-center gap-4">
 						<!-- Tarjetas -->
-						<div class="flex items-center gap-3 bg-white dark:bg-surface-dark px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
+						<div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
 							<div class="text-2xl">💳</div>
 							<div class="text-xs">
 								<p class="font-semibold">Visa</p>
 								<p class="text-slate-500">Crédito/Débito</p>
 							</div>
 						</div>
-						<div class="flex items-center gap-3 bg-white dark:bg-surface-dark px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
+						<div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
 							<div class="text-2xl">💳</div>
 							<div class="text-xs">
 								<p class="font-semibold">Mastercard</p>
@@ -188,7 +189,7 @@
 							</div>
 						</div>
 						<!-- Billeteras digitales -->
-						<div class="flex items-center gap-3 bg-white dark:bg-surface-dark px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
+						<div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
 							<div class="text-2xl">📱</div>
 							<div class="text-xs">
 								<p class="font-semibold">Yape / Plin</p>
@@ -205,11 +206,11 @@
 						Compra Segura
 					</h4>
 					<div class="flex flex-wrap items-center gap-4">
-						<div class="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-lg border border-green-200 dark:border-green-800">
+						<div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
 							<Shield size={16} class="text-green-600 dark:text-green-400" />
 							<span class="text-xs font-semibold text-green-700 dark:text-green-300">Certificado SSL</span>
 						</div>
-						<div class="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-800">
+						<div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark">
 							<Shield size={16} class="text-blue-600 dark:text-blue-400" />
 							<span class="text-xs font-semibold text-blue-700 dark:text-blue-300">Garantía Oficial</span>
 						</div>
