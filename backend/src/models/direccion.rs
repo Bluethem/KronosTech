@@ -3,15 +3,39 @@ use chrono::{DateTime, Utc};
 
 // ==================== ENUMS ====================
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "tipo_direccion", rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, PartialEq)]
+#[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "lowercase")]
 pub enum TipoDireccion {
-    #[sqlx(rename = "envio")]
+    #[serde(rename = "envio")]
     Envio,
-    #[sqlx(rename = "facturacion")]
+    #[serde(rename = "facturacion")]
     Facturacion,
-    #[sqlx(rename = "ambos")]
+    #[serde(rename = "ambos")]
     Ambos,
+}
+
+impl std::str::FromStr for TipoDireccion {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "envio" => Ok(TipoDireccion::Envio),
+            "facturacion" => Ok(TipoDireccion::Facturacion),
+            "ambos" => Ok(TipoDireccion::Ambos),
+            _ => Err(format!("Tipo de dirección inválido: {}", s)),
+        }
+    }
+}
+
+impl std::fmt::Display for TipoDireccion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TipoDireccion::Envio => write!(f, "envio"),
+            TipoDireccion::Facturacion => write!(f, "facturacion"),
+            TipoDireccion::Ambos => write!(f, "ambos"),
+        }
+    }
 }
 
 // ==================== ENTITIES ====================

@@ -9,13 +9,34 @@ impl DireccionRepository {
         pool: &PgPool,
         id_usuario: i32,
     ) -> Result<Vec<Direccion>, sqlx::Error> {
-        let direcciones = sqlx::query_as!(
-            Direccion,
+        use std::str::FromStr;
+
+        #[derive(sqlx::FromRow)]
+        struct DireccionRow {
+            id_direccion: i32,
+            id_usuario: i32,
+            tipo: String,
+            nombre_completo: Option<String>,
+            direccion_linea1: String,
+            direccion_linea2: Option<String>,
+            ciudad: String,
+            departamento: String,
+            codigo_postal: Option<String>,
+            pais: String,
+            telefono_contacto: Option<String>,
+            referencia: Option<String>,
+            es_predeterminada: bool,
+            activo: bool,
+            fecha_creacion: chrono::DateTime<chrono::Utc>,
+        }
+
+        let rows = sqlx::query_as!(
+            DireccionRow,
             r#"
             SELECT
                 id_direccion,
                 id_usuario,
-                tipo as "tipo!: _",
+                tipo::TEXT as "tipo!",
                 nombre_completo,
                 direccion_linea1 as "direccion_linea1!",
                 direccion_linea2,
@@ -37,6 +58,27 @@ impl DireccionRepository {
         .fetch_all(pool)
         .await?;
 
+        let direcciones = rows.into_iter().map(|row| {
+            Direccion {
+                id_direccion: row.id_direccion,
+                id_usuario: row.id_usuario,
+                tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
+                    .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+                nombre_completo: row.nombre_completo,
+                direccion_linea1: row.direccion_linea1,
+                direccion_linea2: row.direccion_linea2,
+                ciudad: row.ciudad,
+                departamento: row.departamento,
+                codigo_postal: row.codigo_postal,
+                pais: row.pais,
+                telefono_contacto: row.telefono_contacto,
+                referencia: row.referencia,
+                es_predeterminada: row.es_predeterminada,
+                activo: row.activo,
+                fecha_creacion: row.fecha_creacion,
+            }
+        }).collect();
+
         Ok(direcciones)
     }
 
@@ -46,13 +88,34 @@ impl DireccionRepository {
         id_direccion: i32,
         id_usuario: i32,
     ) -> Result<Option<Direccion>, sqlx::Error> {
-        let direccion = sqlx::query_as!(
-            Direccion,
+        use std::str::FromStr;
+
+        #[derive(sqlx::FromRow)]
+        struct DireccionRow {
+            id_direccion: i32,
+            id_usuario: i32,
+            tipo: String,
+            nombre_completo: Option<String>,
+            direccion_linea1: String,
+            direccion_linea2: Option<String>,
+            ciudad: String,
+            departamento: String,
+            codigo_postal: Option<String>,
+            pais: String,
+            telefono_contacto: Option<String>,
+            referencia: Option<String>,
+            es_predeterminada: bool,
+            activo: bool,
+            fecha_creacion: chrono::DateTime<chrono::Utc>,
+        }
+
+        let row = sqlx::query_as!(
+            DireccionRow,
             r#"
             SELECT
                 id_direccion,
                 id_usuario,
-                tipo as "tipo!: _",
+                tipo::TEXT as "tipo!",
                 nombre_completo,
                 direccion_linea1 as "direccion_linea1!",
                 direccion_linea2,
@@ -74,6 +137,25 @@ impl DireccionRepository {
         .fetch_optional(pool)
         .await?;
 
+        let direccion = row.map(|row| Direccion {
+            id_direccion: row.id_direccion,
+            id_usuario: row.id_usuario,
+            tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
+                .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+            nombre_completo: row.nombre_completo,
+            direccion_linea1: row.direccion_linea1,
+            direccion_linea2: row.direccion_linea2,
+            ciudad: row.ciudad,
+            departamento: row.departamento,
+            codigo_postal: row.codigo_postal,
+            pais: row.pais,
+            telefono_contacto: row.telefono_contacto,
+            referencia: row.referencia,
+            es_predeterminada: row.es_predeterminada,
+            activo: row.activo,
+            fecha_creacion: row.fecha_creacion,
+        });
+
         Ok(direccion)
     }
 
@@ -83,6 +165,8 @@ impl DireccionRepository {
         id_usuario: i32,
         request: &CrearDireccionRequest,
     ) -> Result<Direccion, sqlx::Error> {
+        use std::str::FromStr;
+
         // Si esta dirección es predeterminada, remover predeterminada de otras
         if request.es_predeterminada.unwrap_or(false) {
             Self::remover_predeterminada(pool, id_usuario).await?;
@@ -91,8 +175,27 @@ impl DireccionRepository {
         let pais = request.pais.clone().unwrap_or_else(|| "Perú".to_string());
         let tipo = request.tipo.as_str();
 
-        let direccion = sqlx::query_as!(
-            Direccion,
+        #[derive(sqlx::FromRow)]
+        struct DireccionRow {
+            id_direccion: i32,
+            id_usuario: i32,
+            tipo: String,
+            nombre_completo: Option<String>,
+            direccion_linea1: String,
+            direccion_linea2: Option<String>,
+            ciudad: String,
+            departamento: String,
+            codigo_postal: Option<String>,
+            pais: String,
+            telefono_contacto: Option<String>,
+            referencia: Option<String>,
+            es_predeterminada: bool,
+            activo: bool,
+            fecha_creacion: chrono::DateTime<chrono::Utc>,
+        }
+
+        let row = sqlx::query_as!(
+            DireccionRow,
             r#"
             INSERT INTO direccion (
                 id_usuario, tipo, nombre_completo, direccion_linea1, direccion_linea2,
@@ -103,7 +206,7 @@ impl DireccionRepository {
             RETURNING
                 id_direccion,
                 id_usuario,
-                tipo as "tipo!: _",
+                tipo::TEXT as "tipo!",
                 nombre_completo,
                 direccion_linea1 as "direccion_linea1!",
                 direccion_linea2,
@@ -133,6 +236,25 @@ impl DireccionRepository {
         .fetch_one(pool)
         .await?;
 
+        let direccion = Direccion {
+            id_direccion: row.id_direccion,
+            id_usuario: row.id_usuario,
+            tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
+                .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+            nombre_completo: row.nombre_completo,
+            direccion_linea1: row.direccion_linea1,
+            direccion_linea2: row.direccion_linea2,
+            ciudad: row.ciudad,
+            departamento: row.departamento,
+            codigo_postal: row.codigo_postal,
+            pais: row.pais,
+            telefono_contacto: row.telefono_contacto,
+            referencia: row.referencia,
+            es_predeterminada: row.es_predeterminada,
+            activo: row.activo,
+            fecha_creacion: row.fecha_creacion,
+        };
+
         Ok(direccion)
     }
 
@@ -143,14 +265,35 @@ impl DireccionRepository {
         id_usuario: i32,
         request: &ActualizarDireccionRequest,
     ) -> Result<Direccion, sqlx::Error> {
+        use std::str::FromStr;
+
         // Si se marca como predeterminada, remover de otras
         if request.es_predeterminada == Some(true) {
             Self::remover_predeterminada(pool, id_usuario).await?;
         }
 
+        #[derive(sqlx::FromRow)]
+        struct DireccionRow {
+            id_direccion: i32,
+            id_usuario: i32,
+            tipo: String,
+            nombre_completo: Option<String>,
+            direccion_linea1: String,
+            direccion_linea2: Option<String>,
+            ciudad: String,
+            departamento: String,
+            codigo_postal: Option<String>,
+            pais: String,
+            telefono_contacto: Option<String>,
+            referencia: Option<String>,
+            es_predeterminada: bool,
+            activo: bool,
+            fecha_creacion: chrono::DateTime<chrono::Utc>,
+        }
+
         // Construir query dinámica basada en campos presentes
-        let direccion = sqlx::query_as!(
-            Direccion,
+        let row = sqlx::query_as!(
+            DireccionRow,
             r#"
             UPDATE direccion
             SET
@@ -170,7 +313,7 @@ impl DireccionRepository {
             RETURNING
                 id_direccion,
                 id_usuario,
-                tipo as "tipo!: _",
+                tipo::TEXT as "tipo!",
                 nombre_completo,
                 direccion_linea1 as "direccion_linea1!",
                 direccion_linea2,
@@ -201,6 +344,25 @@ impl DireccionRepository {
         )
         .fetch_one(pool)
         .await?;
+
+        let direccion = Direccion {
+            id_direccion: row.id_direccion,
+            id_usuario: row.id_usuario,
+            tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
+                .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+            nombre_completo: row.nombre_completo,
+            direccion_linea1: row.direccion_linea1,
+            direccion_linea2: row.direccion_linea2,
+            ciudad: row.ciudad,
+            departamento: row.departamento,
+            codigo_postal: row.codigo_postal,
+            pais: row.pais,
+            telefono_contacto: row.telefono_contacto,
+            referencia: row.referencia,
+            es_predeterminada: row.es_predeterminada,
+            activo: row.activo,
+            fecha_creacion: row.fecha_creacion,
+        };
 
         Ok(direccion)
     }
