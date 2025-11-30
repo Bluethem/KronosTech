@@ -1,6 +1,76 @@
 <script lang="ts">
+  import type { PageData } from './$types';
+  
+  export let data: PageData;
   let activeTab = 'general';
+
+  $: order = data.order?.venta;
+  $: products = data.order?.productos || [];
+
+  function formatDate(dateString: string | null): string {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function formatCurrency(amount: number | null): string {
+    if (amount === null) return 'S/ 0.00';
+    return `S/ ${Number(amount).toFixed(2)}`;
+  }
+
+  function getStatusBadgeClass(status: string | null): string {
+    if (!status) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    
+    const normalizedStatus = status.toLowerCase();
+    const statusMap: Record<string, string> = {
+      'pendiente': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800',
+      'confirmado': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+      'procesando': 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
+      'en proceso': 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
+      'enviado': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800',
+      'entregado': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
+      'cancelado': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800',
+      'devuelto': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800'
+    };
+    
+    return statusMap[normalizedStatus] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  }
+
+  function getPaymentStatusBadgeClass(status: string | null): string {
+    if (!status) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    
+    const normalizedStatus = status.toLowerCase();
+    const statusMap: Record<string, string> = {
+      'pendiente': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800',
+      'procesando': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+      'completado': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800',
+      'pagado': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800',
+      'fallido': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800',
+      'rechazado': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800',
+      'cancelado': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600',
+      'reembolsado': 'bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300 border border-pink-200 dark:border-pink-800',
+      'parcialmente_reembolsado': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800'
+    };
+    
+    return statusMap[normalizedStatus] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  }
 </script>
+
+{#if !order}
+  <div class="flex items-center justify-center min-h-screen">
+    <div class="text-center">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Pedido no encontrado</h2>
+      <p class="text-gray-600 dark:text-gray-400">No se pudo cargar la información del pedido.</p>
+      <a href="/gestion-pedidos" class="mt-4 inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">Volver a la lista</a>
+    </div>
+  </div>
+{:else}
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark font-display text-[#111418] dark:text-gray-200">
 <div class="layout-container flex h-full grow flex-col">
@@ -19,16 +89,16 @@
 <div class="w-full bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm p-4 sm:p-6 mb-6">
 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 <div class="flex flex-col gap-3">
-<p class="text-2xl font-bold leading-tight tracking-[-0.015em] dark:text-white">Pedido #108-4567921-33458</p>
+<p class="text-2xl font-bold leading-tight tracking-[-0.015em] dark:text-white">Pedido #{order.numero_pedido}</p>
 <div class="flex items-center gap-3 flex-wrap">
-<div class="flex h-7 items-center justify-center gap-x-2 rounded-full bg-blue-100 dark:bg-blue-500/20 px-3">
-<p class="text-blue-800 dark:text-blue-300 text-sm font-medium leading-normal">Estado Pedido: Procesando</p>
+<div class="flex h-7 items-center justify-center gap-x-2 rounded-full px-3 {getStatusBadgeClass(order.estado)}">
+<p class="text-sm font-medium leading-normal">Estado Pedido: {order.estado || 'N/A'}</p>
 </div>
-<div class="flex h-7 items-center justify-center gap-x-2 rounded-full bg-green-100 dark:bg-green-500/20 px-3">
-<p class="text-green-800 dark:text-green-300 text-sm font-medium leading-normal">Estado Pago: Pagado</p>
+<div class="flex h-7 items-center justify-center gap-x-2 rounded-full px-3 {getPaymentStatusBadgeClass(order.estado_pago)}">
+<p class="text-sm font-medium leading-normal">Estado Pago: {order.estado_pago || 'N/A'}</p>
 </div>
 </div>
-<p class="text-[#617589] dark:text-gray-400 text-sm font-normal leading-normal">Fecha de pedido: 15 Ago, 2023. Última actualización: 15 Ago, 2023 14:30</p>
+<p class="text-[#617589] dark:text-gray-400 text-sm font-normal leading-normal">Fecha de pedido: {formatDate(order.fecha_pedido)}. Última actualización: {formatDate(order.fecha_actualizacion)}</p>
 </div>
 <div class="flex gap-3 flex-wrap justify-start sm:justify-end shrink-0">
 <button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
@@ -83,25 +153,22 @@
 <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Nombre completo</p>
-<p class="font-medium dark:text-white">Ana García Pérez</p>
+<p class="font-medium dark:text-white">{order.nombre_usuario || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">DNI</p>
-<p class="font-medium dark:text-white">12345678A</p>
+<p class="font-medium dark:text-white">{order.dni_usuario || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Email</p>
 <div class="flex items-center gap-2">
-<p class="font-medium dark:text-white">ana.garcia@email.com</p>
+<p class="font-medium dark:text-white">{order.email_usuario || 'N/A'}</p>
 <span class="material-symbols-outlined text-gray-400 cursor-pointer text-base hover:text-primary">content_copy</span>
 </div>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Teléfono</p>
-<div class="flex items-center gap-2">
-<p class="font-medium dark:text-white">+34 600 123 456</p>
-<span class="material-symbols-outlined text-gray-400 cursor-pointer text-base hover:text-primary">content_copy</span>
-</div>
+<p class="font-medium dark:text-white">{order.telefono_usuario || 'N/A'}</p>
 </div>
 </div>
 </div>
@@ -117,23 +184,23 @@
 <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Dirección</p>
-<p class="font-medium dark:text-white">Calle Falsa 123, Piso 4, Puerta A</p>
+<p class="font-medium dark:text-white">{order.direccion_envio || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Ciudad / Departamento</p>
-<p class="font-medium dark:text-white">Madrid, Comunidad de Madrid</p>
+<p class="font-medium dark:text-white">{order.ciudad || 'N/A'}, {order.departamento || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Código Postal</p>
-<p class="font-medium dark:text-white">28001</p>
+<p class="font-medium dark:text-white">{order.codigo_postal || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Teléfono de Contacto</p>
-<p class="font-medium dark:text-white">+34 600 123 456</p>
+<p class="font-medium dark:text-white">{order.telefono_contacto || 'N/A'}</p>
 </div>
 <div class="sm:col-span-2">
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Referencia</p>
-<p class="font-medium dark:text-white">Edificio rojo con una panadería en la esquina.</p>
+<p class="font-medium dark:text-white">N/A</p>
 </div>
 </div>
 </div>
@@ -148,12 +215,12 @@
 <div class="p-5 flex flex-col gap-4">
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Método de envío</p>
-<p class="font-medium dark:text-white">Envío Estándar</p>
+<p class="font-medium dark:text-white">{order.metodo_envio || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Estado de envío</p>
-<div class="flex h-6 w-fit items-center justify-center gap-x-2 rounded-full bg-yellow-100 dark:bg-yellow-500/20 px-3">
-<p class="text-yellow-800 dark:text-yellow-300 text-xs font-medium leading-normal">Pendiente de Envío</p>
+<div class="flex h-6 w-fit items-center justify-center gap-x-2 rounded-full px-3 {getStatusBadgeClass(order.estado)}">
+<p class="text-xs font-medium leading-normal">{order.estado || 'N/A'}</p>
 </div>
 </div>
 <div>
@@ -168,17 +235,17 @@
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Número de tracking</p>
 <div class="flex gap-2">
-<input class="flex-grow w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary text-sm dark:text-white" placeholder="Añadir tracking" type="text"/>
+<input class="flex-grow w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary focus:ring-primary text-sm dark:text-white" placeholder="Añadir tracking" type="text" value="{order.numero_tracking || ''}"/>
 <button class="flex-shrink-0 cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-[#f0f2f4] dark:bg-gray-700 text-[#111418] dark:text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Guardar</button>
 </div>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Fecha estimada de entrega</p>
-<p class="font-medium dark:text-white">20 Ago, 2023</p>
+<p class="font-medium dark:text-white">{order.fecha_entrega_estimada || 'N/A'}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Costo de envío</p>
-<p class="font-medium dark:text-white">4,99 €</p>
+<p class="font-medium dark:text-white">{formatCurrency(order.costo_envio)}</p>
 </div>
 </div>
 </div>
@@ -200,32 +267,26 @@
 </tr>
 </thead>
 <tbody>
+{#each products as product}
 <tr class="bg-white border-b dark:bg-background-dark dark:border-gray-700">
 <td class="px-6 py-4">
-<img alt="Producto 1" class="w-10 h-10 rounded object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDekzd0O2BLWKf_jelvxqJjC48j1Qr3abxoOqMCMJzuuPdRbj2spMp_c3mornsQBVEDjTrtBjDBCE2Urchj0YZM8sV-XPJj4wdzBEdHthYcF2XavO5xqTOGg3CuTVHqQ7MBgEGo-7xzylZe9rqre3hH879gJnPwahdgS7BBrmVhdloNTeHmjqT6g5gTta0knXTvEG2L-CVAgZkISVxVs0NEl_IzcRPuCn43EPNcSgV9D4Yi6mhUV3mvcRwTe8d6E2ewshMWfu8X8Dg"/>
+<img alt={product.nombre_producto} class="w-10 h-10 rounded object-cover" src={product.imagen_principal || 'https://via.placeholder.com/40'}/>
 </td>
 <th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
-<div>Zapatillas Deportivas UltraBoost</div>
-<div class="text-xs text-gray-500 dark:text-gray-400">SKU: ZD-UB-42-R</div>
+<div>{product.nombre_producto}</div>
+<div class="text-xs text-gray-500 dark:text-gray-400">SKU: {product.sku}</div>
 </th>
-<td class="px-6 py-4 text-center">1</td>
-<td class="px-6 py-4 text-right">180,00 €</td>
-<td class="px-6 py-4 text-right">-18,00 €</td>
-<td class="px-6 py-4 text-right">162,00 €</td>
+<td class="px-6 py-4 text-center">{product.cantidad}</td>
+<td class="px-6 py-4 text-right">{formatCurrency(product.precio_unitario)}</td>
+<td class="px-6 py-4 text-right">{formatCurrency(0)}</td> <!-- Descuento unitario no disponible en struct actual -->
+<td class="px-6 py-4 text-right">{formatCurrency(product.subtotal)}</td>
 </tr>
-<tr class="bg-white dark:bg-background-dark">
-<td class="px-6 py-4">
-<img alt="Producto 2" class="w-10 h-10 rounded object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGGTWBLUBDc4Y109Xtv1DJatp-bh3coYiEpQg-pPmbFb7-Nbkd-l2BUEq8ktho55fJeQVwDLQRtrvBZ0w8OiIDbq3pQTzKb2CnTWprUSZDpodVAg8gckMHjbopB3Q5AkUqeiR8e9CfVVNayDYvt0Y_A8wF54ebsMXA-J2bvUzigK911eq5pCX6olesYMAo5iBKzJteK340C2wpwIGxkNlaWzpByk6wsft0C3gm_JDyddDIecBDrTEYfsNd-7-J2MQshh3mOlRQZkA"/>
-</td>
-<th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
-<div>Auriculares Inalámbricos SonidoHD</div>
-<div class="text-xs text-gray-500 dark:text-gray-400">SKU: AU-SHD-BK</div>
-</th>
-<td class="px-6 py-4 text-center">2</td>
-<td class="px-6 py-4 text-right">99,99 €</td>
-<td class="px-6 py-4 text-right">0,00 €</td>
-<td class="px-6 py-4 text-right">199,98 €</td>
+{/each}
+{#if products.length === 0}
+<tr>
+<td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay productos en este pedido.</td>
 </tr>
+{/if}
 </tbody>
 </table>
 </div>
@@ -233,20 +294,20 @@
 <div class="w-full max-w-sm flex flex-col gap-3">
 <div class="flex justify-between text-sm">
 <span class="text-gray-600 dark:text-gray-400">Subtotal</span>
-<span class="font-medium text-gray-800 dark:text-gray-200">361,98 €</span>
+<span class="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(order.subtotal)}</span>
 </div>
 <div class="flex justify-between text-sm">
 <span class="text-gray-600 dark:text-gray-400">Descuento Total</span>
-<span class="font-medium text-gray-800 dark:text-gray-200">-18,00 €</span>
+<span class="font-medium text-gray-800 dark:text-gray-200">-{formatCurrency(order.descuento_total)}</span>
 </div>
 <div class="flex justify-between text-sm">
 <span class="text-gray-600 dark:text-gray-400">Costo de Envío</span>
-<span class="font-medium text-gray-800 dark:text-gray-200">4,99 €</span>
+<span class="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(order.costo_envio)}</span>
 </div>
 <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 <div class="flex justify-between items-center">
 <span class="text-lg font-bold text-gray-900 dark:text-white">Total</span>
-<span class="text-2xl font-bold text-gray-900 dark:text-white">348,97 €</span>
+<span class="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(order.total)}</span>
 </div>
 </div>
 </div>
@@ -263,67 +324,27 @@
 <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm p-5">
 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-center">
 <div class="lg:col-span-2">
-<p class="text-sm text-gray-500 dark:text-gray-400">Número de transacción</p>
-<p class="font-mono text-xs text-gray-800 dark:text-gray-200">ch_3NfG4p2eZvKYlo2C1g9qB8bZ</p>
+<p class="text-sm text-gray-500 dark:text-gray-400">Número de pedido</p>
+<p class="font-mono text-xs text-gray-800 dark:text-gray-200">{order.numero_pedido}</p>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Método de pago</p>
 <div class="flex items-center gap-2">
-<svg class="w-6 h-auto" fill="none" viewBox="0 0 42 28" xmlns="http://www.w3.org/2000/svg"><path d="M39.815 1.685a3.91 3.91 0 0 0-3.327-1.46h-28.98a3.91 3.91 0 0 0-3.327 1.46 3.913 3.913 0 0 0-1.46 3.328v17.974c0 1.25.487 2.45 1.46 3.327a3.91 3.91 0 0 0 3.328 1.46h28.98a3.91 3.91 0 0 0 3.327-1.46 3.913 3.913 0 0 0 1.46-3.328V5.013a3.913 3.913 0 0 0-1.46-3.328z" fill="#fff"></path><path d="M4.18 2.91a2.1 2.1 0 0 0-2.1 2.1v2.8h37.84V5.01a2.1 2.1 0 0 0-2.1-2.1z" fill="#404953"></path><path d="M2.08 10.37h37.84v12.614a2.1 2.1 0 0 1-2.1 2.1H4.18a2.1 2.1 0 0 1-2.1-2.1z" fill="#20262C"></path><path d="M28.01 20.31h7.82v2.1h-7.82z" fill="#404953"></path><path d="M5.13 19.34a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1zm3.32 0a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1zm3.33 0a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1z" fill="#fff"></path></svg>
-<span class="font-medium text-gray-800 dark:text-white">Tarjeta</span>
+<span class="material-symbols-outlined text-gray-600 dark:text-gray-300">payments</span>
+<span class="font-medium text-gray-800 dark:text-white">N/A</span>
 </div>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Estado</p>
-<div class="flex h-6 w-fit items-center justify-center gap-x-2 rounded-full bg-green-100 dark:bg-green-500/20 px-3">
-<p class="text-green-800 dark:text-green-300 text-xs font-medium leading-normal">Completado</p>
+<div class="flex h-6 w-fit items-center justify-center gap-x-2 rounded-full px-3 {getPaymentStatusBadgeClass(order.estado_pago)}">
+<p class="text-xs font-medium leading-normal">{order.estado_pago || 'N/A'}</p>
 </div>
 </div>
 <div>
 <p class="text-sm text-gray-500 dark:text-gray-400">Monto</p>
-<p class="font-medium text-gray-800 dark:text-white">348,97 €</p>
+<p class="font-medium text-gray-800 dark:text-white">{formatCurrency(order.total)}</p>
 </div>
 <div class="flex flex-col items-start lg:items-end">
-<p class="text-sm text-gray-500 dark:text-gray-400">15 Ago, 2023 14:25</p>
-<button class="text-primary font-bold text-sm hover:underline">Ver detalles</button>
-</div>
-</div>
-</div>
-<div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm p-5">
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-center">
-<div class="lg:col-span-2">
-<p class="text-sm text-gray-500 dark:text-gray-400">Número de transacción</p>
-<p class="font-mono text-xs text-gray-800 dark:text-gray-200">pi_3NfG4p2eZvKYlo2C1f8aB7cD</p>
-</div>
-<div>
-<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Método de pago</p>
-<div class="flex items-center gap-2">
-<svg class="w-6 h-auto" fill="none" viewBox="0 0 42 28" xmlns="http://www.w3.org/2000/svg"><path d="M39.815 1.685a3.91 3.91 0 0 0-3.327-1.46h-28.98a3.91 3.91 0 0 0-3.327 1.46 3.913 3.913 0 0 0-1.46 3.328v17.974c0 1.25.487 2.45 1.46 3.327a3.91 3.91 0 0 0 3.328 1.46h28.98a3.91 3.91 0 0 0 3.327-1.46 3.913 3.913 0 0 0 1.46-3.328V5.013a3.913 3.913 0 0 0-1.46-3.328z" fill="#fff"></path><path d="M4.18 2.91a2.1 2.1 0 0 0-2.1 2.1v2.8h37.84V5.01a2.1 2.1 0 0 0-2.1-2.1z" fill="#404953"></path><path d="M2.08 10.37h37.84v12.614a2.1 2.1 0 0 1-2.1 2.1H4.18a2.1 2.1 0 0 1-2.1-2.1z" fill="#20262C"></path><path d="M28.01 20.31h7.82v2.1h-7.82z" fill="#404953"></path><path d="M5.13 19.34a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1zm3.32 0a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1zm3.33 0a1.05 1.05 0 1 0 0 2.1 1.05 1.05 0 0 0 0-2.1z" fill="#fff"></path></svg>
-<span class="font-medium text-gray-800 dark:text-white">Tarjeta</span>
-</div>
-</div>
-<div>
-<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Estado</p>
-<div class="flex h-6 w-fit items-center justify-center gap-x-2 rounded-full bg-red-100 dark:bg-red-500/20 px-3">
-<p class="text-red-800 dark:text-red-300 text-xs font-medium leading-normal">Fallido</p>
-</div>
-</div>
-<div>
-<p class="text-sm text-gray-500 dark:text-gray-400">Monto</p>
-<p class="font-medium text-gray-800 dark:text-white">348,97 €</p>
-</div>
-<div class="flex flex-col items-start lg:items-end">
-<p class="text-sm text-gray-500 dark:text-gray-400">15 Ago, 2023 14:24</p>
-<button class="text-primary font-bold text-sm hover:underline">Ver detalles</button>
-</div>
-</div>
-</div>
-</div>
-{:else if activeTab === 'historial'}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6">
-<div class="lg:col-span-2 flex flex-col gap-6">
-<div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
-<div class="p-5 border-b border-gray-200 dark:border-gray-700">
 <h3 class="text-lg font-bold tracking-tight dark:text-white">Notas Internas</h3>
 </div>
 <div class="p-5 flex flex-col gap-4">
@@ -401,3 +422,4 @@
 </div>
 </div>
 </div>
+{/if}

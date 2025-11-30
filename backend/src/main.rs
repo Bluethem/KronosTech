@@ -14,7 +14,7 @@ use axum::{
     Router,
 };
 use config::{DatabaseConfig, Settings};
-use routes::catalogo_routes;
+use routes::{catalogo_routes, venta_routes};
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -43,7 +43,8 @@ async fn main() {
 
     // Construir rutas
     let app = Router::new()
-        .nest("/api", catalogo_routes(pool))
+        .nest("/api", catalogo_routes(pool.clone()))
+        .nest("/api", venta_routes(pool))
         .layer(cors);
 
     let addr = settings.server_address();
@@ -56,6 +57,7 @@ async fn main() {
     println!("   GET  /api/productos");
     println!("   GET  /api/productos/{{id}}");
     println!("   GET  /api/productos/slug/{{slug}}");
+    println!("   GET  /api/ventas");
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)

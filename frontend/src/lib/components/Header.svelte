@@ -23,7 +23,10 @@
     '/reportes-ventas',
     '/inventario',
     '/reportes-inventario',
-    '/gestion-productos'
+    '/gestion-productos',
+    '/gestion-descuentos',
+    '/gestion-cupones',
+    '/gestion-reembolsos'
   ].some(path => $page.url.pathname.startsWith(path));
   
   async function handleAutocomplete() {
