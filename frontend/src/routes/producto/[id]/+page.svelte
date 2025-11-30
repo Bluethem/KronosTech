@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { catalogoService, type ProductoDetalle, type Valoracion } from '$lib/services/api';
+	import { cartService } from '$lib/services/cart';
+	import { isAuthenticated } from '$lib/stores/auth';
 	import { ShoppingCart, Heart, Truck, Shield, Star, Minus, Plus, ThumbsUp, BadgeCheck } from 'lucide-svelte';
-	
+
 	let producto: ProductoDetalle | null = null;
 	let valoraciones: Valoracion[] = [];
 	let loading = true;
@@ -12,6 +15,7 @@
 	let cantidad = 1;
 	let imagenSeleccionada = 0;
 	let tabActiva: 'especificaciones' | 'descripcion' | 'resenas' = 'especificaciones';
+	let isAddingToCart = false;
 	
 	$: productId = parseInt($page.params.id || '0');
 	$: imagenes = producto?.imagenes || [producto?.imagen_principal || 'https://placehold.co/800x600/1e293b/94a3b8?text=Producto'];
@@ -74,9 +78,27 @@
 		}
 	}
 	
-	function agregarAlCarrito() {
-		console.log('Agregar al carrito:', producto?.nombre, 'Cantidad:', cantidad);
-		// TODO: Implementar carrito
+	async function agregarAlCarrito() {
+		// Verificar si está autenticado
+		if (!$isAuthenticated) {
+			await goto('/login?redirect=/producto/' + productId);
+			return;
+		}
+
+		if (!producto || isAddingToCart || producto.stock_disponible === 0) return;
+
+		isAddingToCart = true;
+		try {
+			await cartService.addItem({
+				id_producto_detalle: producto.id_producto_detalle,
+				cantidad: cantidad
+			});
+			// Redirigir al carrito
+			await goto('/carrito');
+		} catch (error: any) {
+			alert(error.message || 'Error al agregar al carrito');
+			isAddingToCart = false;
+		}
 	}
 	
 	onMount(() => {
@@ -225,13 +247,19 @@
 							<Plus size={18} />
 						</button>
 					</div>
-					<button 
+					<button
 						on:click={agregarAlCarrito}
-						disabled={producto.stock_disponible === 0}
+						disabled={producto.stock_disponible === 0 || isAddingToCart}
 						class="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white text-base font-semibold rounded-lg shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						<ShoppingCart size={20} />
-						Añadir al carrito
+						{#if isAddingToCart}
+							Agregando...
+						{:else if producto.stock_disponible === 0}
+							Agotado
+						{:else}
+							Añadir al carrito
+						{/if}
 					</button>
 					<button class="p-3 border border-border-light dark:border-border-dark text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-surface-dark rounded-lg transition-colors">
 						<Heart size={20} />

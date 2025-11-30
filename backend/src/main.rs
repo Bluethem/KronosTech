@@ -14,7 +14,7 @@ use axum::{
     Router,
 };
 use config::{DatabaseConfig, Settings};
-use routes::catalogo_routes;
+use routes::{catalogo_routes, auth_routes, carrito_routes, direccion_routes, checkout_routes};
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -43,12 +43,17 @@ async fn main() {
 
     // Construir rutas
     let app = Router::new()
-        .nest("/api", catalogo_routes(pool))
+        .nest("/api", catalogo_routes(pool.clone()))
+        .nest("/api/auth", auth_routes(pool.clone()))
+        .nest("/api", carrito_routes(pool.clone()))
+        .nest("/api", direccion_routes(pool.clone()))
+        .nest("/api", checkout_routes(pool))
         .layer(cors);
 
     let addr = settings.server_address();
     println!("🌐 Server listening on http://{}", addr);
     println!("📦 API Endpoints:");
+    println!("   === Catálogo ===");
     println!("   GET  /api/familias");
     println!("   GET  /api/categorias");
     println!("   GET  /api/subcategorias");
@@ -56,6 +61,28 @@ async fn main() {
     println!("   GET  /api/productos");
     println!("   GET  /api/productos/{{id}}");
     println!("   GET  /api/productos/slug/{{slug}}");
+    println!("   === Autenticación ===");
+    println!("   POST /api/auth/register");
+    println!("   POST /api/auth/login");
+    println!("   GET  /api/auth/me");
+    println!("   POST /api/auth/logout");
+    println!("   === Carrito de Compras ===");
+    println!("   GET    /api/carrito");
+    println!("   POST   /api/carrito/items");
+    println!("   PATCH  /api/carrito/items/{{id}}");
+    println!("   DELETE /api/carrito/items/{{id}}");
+    println!("   DELETE /api/carrito");
+    println!("   === Direcciones ===");
+    println!("   GET    /api/direcciones");
+    println!("   POST   /api/direcciones");
+    println!("   PUT    /api/direcciones/{{id}}");
+    println!("   DELETE /api/direcciones/{{id}}");
+    println!("   === Checkout y Pedidos ===");
+    println!("   GET    /api/metodos-pago");
+    println!("   GET    /api/checkout/calcular-total");
+    println!("   POST   /api/checkout/procesar");
+    println!("   GET    /api/pedidos");
+    println!("   GET    /api/pedidos/{{id}}");
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)

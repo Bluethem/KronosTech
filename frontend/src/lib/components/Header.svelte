@@ -4,17 +4,27 @@
   import { theme, toggleTheme } from '$lib/stores/theme';
   import { searchHistory } from '$lib/stores/searchHistory';
   import { catalogoService } from '$lib/services/api';
-  import { ShoppingCart, User, Heart, Search, Sun, Moon, Menu, Clock, X } from 'lucide-svelte';
+  import { authUser, isAuthenticated, logout, initAuth } from '$lib/stores/auth';
+  import { cartItemCount } from '$lib/stores/cart';
+  import { ShoppingCart, User, Heart, Search, Sun, Moon, Menu, Clock, X, LogOut, UserCircle } from 'lucide-svelte';
   import logo from '$lib/assets/favicon.svg';
-  
+
   let searchQuery = '';
   let mobileMenuOpen = false;
   let showAutocomplete = false;
+  let showUserMenu = false;
   let autocompleteResults: any[] = [];
   let searchTimeout: number;
   let searchInputRef: HTMLDivElement;
-  
+  let userMenuRef: HTMLDivElement;
+
   $: isDark = $theme === 'dark';
+  $: userMenuButtonText = $authUser ? `${$authUser.nombre} ${$authUser.apellido}` : 'Iniciar sesión';
+
+  onMount(() => {
+    // Inicializar autenticación
+    initAuth();
+  });
   
   async function handleAutocomplete() {
     if (searchQuery.trim().length < 2) {
@@ -55,9 +65,20 @@
     if (searchInputRef && !searchInputRef.contains(event.target as Node)) {
       showAutocomplete = false;
     }
+    if (userMenuRef && !userMenuRef.contains(event.target as Node)) {
+      showUserMenu = false;
+    }
   }
-  
+
+  async function handleLogout() {
+    await logout();
+    showUserMenu = false;
+  }
+
   onMount(() => {
+    // Inicializar autenticación
+    initAuth();
+
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
@@ -177,9 +198,61 @@
       </button>
 
       <!-- Usuario -->
-      <button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
-        <User size={20} />
-      </button>
+      {#if $isAuthenticated}
+        <div class="relative" bind:this={userMenuRef}>
+          <button
+            on:click={() => showUserMenu = !showUserMenu}
+            class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
+          >
+            <User size={20} />
+            <span class="hidden lg:block">{$authUser?.nombre}</span>
+          </button>
+
+          {#if showUserMenu}
+            <div class="absolute right-0 top-full mt-2 w-56 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg shadow-xl z-50 overflow-hidden">
+              <div class="px-4 py-3 border-b border-border-light dark:border-border-dark">
+                <p class="text-sm font-medium text-text-light dark:text-text-dark">
+                  {$authUser?.nombre} {$authUser?.apellido}
+                </p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {$authUser?.email}
+                </p>
+              </div>
+              <div class="py-2">
+                <a
+                  href="/perfil"
+                  class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <UserCircle size={16} />
+                  Mi cuenta
+                </a>
+                <a
+                  href="/pedidos"
+                  class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <ShoppingCart size={16} />
+                  Mis pedidos
+                </a>
+                <button
+                  on:click={handleLogout}
+                  class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-red-600 dark:text-red-400"
+                >
+                  <LogOut size={16} />
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <a
+          href="/login"
+          class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
+        >
+          <User size={20} />
+          <span class="hidden lg:block">Ingresar</span>
+        </a>
+      {/if}
 
       <!-- Favoritos -->
       <button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
@@ -187,10 +260,15 @@
       </button>
 
       <!-- Carrito -->
-      <button class="relative flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+      <a
+        href="/carrito"
+        class="relative flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-slate-200 dark:bg-surface-dark text-text-light dark:text-text-dark hover:bg-slate-300 dark:hover:bg-slate-700/60 transition-colors gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
+      >
         <ShoppingCart size={20} />
-        <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">0</span>
-      </button>
+        {#if $cartItemCount > 0}
+          <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white text-xs font-bold">{$cartItemCount}</span>
+        {/if}
+      </a>
 
       <!-- Menú móvil -->
       <button 
