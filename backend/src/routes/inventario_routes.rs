@@ -9,5 +9,6 @@ pub fn inventario_routes(pool: PgPool) -> Router {
         .route("/inventario/stats", get(inventario_handler::get_inventario_stats))
         .route("/inventario/search", get(inventario_handler::search_products))
         .route("/inventario/entrada", post(inventario_handler::add_stock_entry))
+        .route("/inventario/{id}/historial", get(inventario_handler::get_historial_inventario))
         .with_state(pool)
 }

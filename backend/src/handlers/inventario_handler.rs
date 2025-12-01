@@ -258,6 +258,34 @@ pub async fn add_stock_entry(
         None
     };
 
+    // Start a transaction
+    let mut tx = match pool.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            eprintln!("Error starting transaction: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Get current stock and id_inventario
+    let current_stock: (i32, i32) = match sqlx::query_as(
+        "SELECT cantidad_disponible, id_inventario FROM inventario WHERE id_producto_detalle = $1"
+    )
+    .bind(payload.id_producto_detalle)
+    .fetch_one(&mut *tx)
+    .await
+    {
+        Ok(stock) => stock,
+        Err(e) => {
+            eprintln!("Error fetching current stock: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let cantidad_anterior = current_stock.0;
+    let id_inventario = current_stock.1;
+    let cantidad_nueva = cantidad_anterior + payload.cantidad;
+
     // Update inventory
     let update_query = r#"
         UPDATE inventario
@@ -271,19 +299,132 @@ pub async fn add_stock_entry(
         WHERE id_producto_detalle = $5
     "#;
 
-    match sqlx::query(update_query)
+    if let Err(e) = sqlx::query(update_query)
         .bind(payload.cantidad)
         .bind(&payload.ubicacion_fisica)
         .bind(&payload.lote)
         .bind(fecha_venc)
         .bind(payload.id_producto_detalle)
-        .execute(&pool)
+        .execute(&mut *tx)
         .await
     {
+        eprintln!("Error updating inventory: {:?}", e);
+        let _ = tx.rollback().await;
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    // Create movement record
+    let insert_movement = r#"
+        INSERT INTO movimiento_inventario (
+            id_inventario,
+            id_producto_detalle,
+            tipo_movimiento,
+            cantidad,
+            cantidad_anterior,
+            cantidad_nueva,
+            motivo,
+            id_usuario,
+            fecha_movimiento,
+            notas,
+            documento_referencia
+        ) VALUES ($1, $2, $3::tipo_movimiento_inventario, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9, $10)
+    "#;
+
+    if let Err(e) = sqlx::query(insert_movement)
+        .bind(id_inventario)
+        .bind(payload.id_producto_detalle)
+        .bind("entrada")
+        .bind(payload.cantidad)
+        .bind(cantidad_anterior)
+        .bind(cantidad_nueva)
+        .bind("Entrada de stock manual")
+        .bind(1) // TODO: Get actual user ID from session
+        .bind(Option::<String>::None) // notas
+        .bind(Option::<String>::None) // documento_referencia
+        .execute(&mut *tx)
+        .await
+    {
+        eprintln!("Error creating movement record: {:?}", e);
+        let _ = tx.rollback().await;
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    // Commit transaction
+    match tx.commit().await {
         Ok(_) => Ok(StatusCode::OK),
         Err(e) => {
-            eprintln!("Error adding stock entry: {:?}", e);
+            eprintln!("Error committing transaction: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct MovimientoHistorial {
+    pub id_movimiento: i32,
+    pub tipo_movimiento: String,
+    pub cantidad: i32,
+    pub cantidad_anterior: i32,
+    pub cantidad_nueva: i32,
+    pub motivo: Option<String>,
+    pub usuario: Option<String>,
+    pub fecha_movimiento: Option<NaiveDateTime>,
+    pub notas: Option<String>,
+    pub documento_referencia: Option<String>,
+}
+
+pub async fn get_historial_inventario(
+    State(pool): State<PgPool>,
+    axum::extract::Path(id_producto_detalle): axum::extract::Path<i32>,
+) -> Result<Json<Vec<MovimientoHistorial>>, StatusCode> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT 
+            m.id_movimiento,
+            m.tipo_movimiento::text as tipo_movimiento,
+            m.cantidad,
+            m.cantidad_anterior,
+            m.cantidad_nueva,
+            m.motivo,
+            u.nombre as "usuario?",
+            m.fecha_movimiento,
+            m.notas,
+            m.documento_referencia
+        FROM movimiento_inventario m
+        LEFT JOIN usuario u ON m.id_usuario = u.id_usuario
+        WHERE m.id_producto_detalle = $1
+        ORDER BY m.fecha_movimiento DESC
+        LIMIT 100
+        "#,
+        id_producto_detalle
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching inventory history: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let movimientos: Vec<MovimientoHistorial> = rows
+        .into_iter()
+        .map(|row| MovimientoHistorial {
+            id_movimiento: row.id_movimiento,
+            tipo_movimiento: row.tipo_movimiento.unwrap_or_default(),
+            cantidad: row.cantidad,
+            cantidad_anterior: row.cantidad_anterior,
+            cantidad_nueva: row.cantidad_nueva,
+            motivo: row.motivo,
+            usuario: row.usuario,
+            fecha_movimiento: row.fecha_movimiento.map(|dt| {
+                chrono::NaiveDateTime::new(
+                    chrono::NaiveDate::from_ymd_opt(dt.year(), dt.month() as u32, dt.day() as u32).unwrap(),
+                    chrono::NaiveTime::from_hms_opt(dt.hour() as u32, dt.minute() as u32, dt.second() as u32).unwrap()
+                )
+            }),
+            notas: row.notas,
+            documento_referencia: row.documento_referencia,
+        })
+        .collect();
+
+    Ok(Json(movimientos))
 }

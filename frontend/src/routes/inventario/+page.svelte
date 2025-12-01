@@ -39,6 +39,11 @@
   let submitting = $state(false);
   let successMessage = $state('');
   
+  // History sidebar state
+  let selectedProductHistory = $state(null);
+  let historyMovements = $state([]);
+  let loadingHistory = $state(false);
+  
   onMount(async () => {
     await fetchData();
   });
@@ -212,6 +217,48 @@
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('es-PE');
   }
+
+  async function openHistorySidebar(product) {
+    selectedProductHistory = product;
+    showHistorySidebar = true;
+    await fetchProductHistory(product.id_producto_detalle);
+  }
+  
+  async function fetchProductHistory(idProductoDetalle) {
+    loadingHistory = true;
+    try {
+      const response = await fetch(`http://localhost:3000/api/inventario/${idProductoDetalle}/historial`);
+      if (!response.ok) throw new Error('Error al cargar historial');
+      historyMovements = await response.json();
+    } catch (e) {
+      console.error('Error fetching history:', e);
+      historyMovements = [];
+    } finally {
+      loadingHistory = false;
+    }
+  }
+
+  function getMovementIcon(tipoMovimiento: string) {
+    switch(tipoMovimiento.toLowerCase()) {
+      case 'entrada': return 'add_shopping_cart';
+      case 'salida':
+      case 'venta': return 'shopping_cart';
+      case 'ajuste': return 'tune';
+      case 'devolucion': return 'keyboard_return';
+      default: return 'swap_horiz';
+    }
+  }
+  
+  function getMovementColor(tipoMovimiento: string) {
+    switch(tipoMovimiento.toLowerCase()) {
+      case 'entrada': return 'green';
+      case 'salida':
+      case 'venta': return 'red';
+      case 'ajuste': return 'blue';
+      case 'devolucion': return 'yellow';
+      default: return 'gray';
+    }
+  }
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark font-display">
@@ -319,7 +366,7 @@
     <td class="px-6 py-4">
       <div class="flex items-center justify-center gap-2">
         <button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
-        <button on:click={() => showHistorySidebar = true} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
+        <button on:click={() => openHistorySidebar(item)} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
         <button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
       </div>
     </td>
@@ -553,15 +600,15 @@ Cancelar
 <aside class="fixed top-0 right-0 h-full w-full max-w-2xl bg-background-light dark:bg-background-dark z-50 flex flex-col shadow-2xl">
 <header class="flex items-start justify-between p-6 border-b border-gray-200 dark:border-gray-800">
 <div class="flex items-center gap-4">
-<img class="w-16 h-16 rounded-lg object-cover" alt="Zapatilla deportiva roja" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDc48OhfbdmqeXdjAmallc0JlVZwxSdYr1QbMjB61_p4dtImvP51MzwXHktoAB0-d8eP4ktQkFHqU-BgmNqEi7PWrF96mpRezMiBMSKt2VO6tOSc7uCSGG8ZGfxS6TbXy-kUzs8jA1IZsyhfMwGCz2wvvnbwd0F8_2BespoQGYD_6XX_C0yfHDqIEF5SbNiYD6WmwoDFADPANGIkU1onF1FfwWnBpoZceOUMJdva84NyTcbqRHstv59r4Nw7-W6oD6Q4HsBwa6N78w"/>
+<img class="w-16 h-16 rounded-lg object-cover" alt={selectedProductHistory?.nombre || 'Producto'} src={selectedProductHistory?.imagen_principal || 'https://via.placeholder.com/64'}/>
 <div class="flex flex-col gap-1">
 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Historial de Movimientos</h2>
-<p class="text-sm text-gray-700 dark:text-gray-300">Zapatilla Deportiva NX-200</p>
+<p class="text-sm text-gray-700 dark:text-gray-300">{selectedProductHistory?.nombre || 'Producto'}</p>
 <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-<span>SKU: ZAP-NX-200-42</span>
+<span>SKU: {selectedProductHistory?.sku || 'N/A'}</span>
 <span class="flex items-center gap-1">
 <span class="font-medium text-gray-600 dark:text-gray-300">Stock Actual:</span>
-<span class="font-bold text-green-600 dark:text-green-400">250</span>
+<span class="font-bold text-green-600 dark:text-green-400">{selectedProductHistory?.cantidad_disponible || 0}</span>
 </span>
 </div>
 </div>
@@ -596,75 +643,59 @@ Cancelar
 </div>
 </div>
 <div class="flex-1 overflow-y-auto p-6">
-<ul class="space-y-4">
-<li class="flex items-start gap-4">
-<div class="flex flex-col items-center">
-<span class="flex items-center justify-center size-8 rounded-full bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"><span class="material-symbols-outlined text-lg">add_shopping_cart</span></span>
-</div>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<p class="text-sm font-medium text-gray-800 dark:text-gray-200"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/80 dark:text-green-300">Entrada</span></p>
-<p class="text-xs text-gray-500 dark:text-gray-400">26 Oct 2023, 10:30 AM</p>
-</div>
-<div class="mt-1 flex justify-between items-center">
-<p class="text-sm text-gray-500 dark:text-gray-400">Cantidad: <span class="font-semibold text-green-600 dark:text-green-400">+50</span></p>
-<p class="text-sm text-gray-500 dark:text-gray-400">200 <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> 250</p>
-</div>
-<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Motivo: Recepción de proveedor | Usuario: admin</p>
-</div>
-</li>
-<li class="flex items-start gap-4">
-<div class="flex flex-col items-center">
-<span class="flex items-center justify-center size-8 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400"><span class="material-symbols-outlined text-lg">shopping_cart</span></span>
-</div>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<p class="text-sm font-medium text-gray-800 dark:text-gray-200"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/80 dark:text-red-300">Venta</span></p>
-<p class="text-xs text-gray-500 dark:text-gray-400">25 Oct 2023, 04:50 PM</p>
-</div>
-<div class="mt-1 flex justify-between items-center">
-<p class="text-sm text-gray-500 dark:text-gray-400">Cantidad: <span class="font-semibold text-red-600 dark:text-red-400">-2</span></p>
-<p class="text-sm text-gray-500 dark:text-gray-400">202 <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> 200</p>
-</div>
-<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Pedido #10524 | Usuario: Juan Pérez</p>
-</div>
-</li>
-<li class="flex items-start gap-4">
-<div class="flex flex-col items-center">
-<span class="flex items-center justify-center size-8 rounded-full bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400"><span class="material-symbols-outlined text-lg">published_with_changes</span></span>
-</div>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<p class="text-sm font-medium text-gray-800 dark:text-gray-200"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/80 dark:text-yellow-300">Ajuste Negativo</span></p>
-<p class="text-xs text-gray-500 dark:text-gray-400">24 Oct 2023, 11:00 AM</p>
-</div>
-<div class="mt-1 flex justify-between items-center">
-<p class="text-sm text-gray-500 dark:text-gray-400">Cantidad: <span class="font-semibold text-red-600 dark:text-red-400">-3</span></p>
-<p class="text-sm text-gray-500 dark:text-gray-400">205 <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> 202</p>
-</div>
-<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Motivo: Producto dañado | Usuario: admin</p>
-</div>
-</li>
-<li class="flex items-start gap-4">
-<div class="flex flex-col items-center">
-<span class="flex items-center justify-center size-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400"><span class="material-symbols-outlined text-lg">local_shipping</span></span>
-</div>
-<div class="flex-1">
-<div class="flex justify-between items-center">
-<p class="text-sm font-medium text-gray-800 dark:text-gray-200"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/80 dark:text-blue-300">Salida</span></p>
-<p class="text-xs text-gray-500 dark:text-gray-400">23 Oct 2023, 09:15 AM</p>
-</div>
-<div class="mt-1 flex justify-between items-center">
-<p class="text-sm text-gray-500 dark:text-gray-400">Cantidad: <span class="font-semibold text-red-600 dark:text-red-400">-10</span></p>
-<p class="text-sm text-gray-500 dark:text-gray-400">215 <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> 205</p>
-</div>
-<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Transferencia a Tienda Central | Usuario: Marta Gómez</p>
-</div>
-</li>
-</ul>
-<div class="mt-6 text-center">
-<button class="h-9 px-4 text-sm font-medium text-primary dark:text-primary-400 bg-primary/10 hover:bg-primary/20 rounded-lg">Cargar más movimientos</button>
-</div>
+{#if loadingHistory}
+  <div class="flex items-center justify-center py-12">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+  </div>
+{:else if historyMovements.length === 0}
+  <div class="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+    <span class="material-symbols-outlined text-6xl mb-4">history</span>
+    <p>No hay movimientos registrados</p>
+  </div>
+{:else}
+  <ul class="space-y-4">
+  {#each historyMovements as movement}
+    {@const color = getMovementColor(movement.tipo_movimiento)}
+    {@const icon = getMovementIcon(movement.tipo_movimiento)}
+    {@const isPositive = movement.cantidad > 0}
+    <li class="flex items-start gap-4">
+      <div class="flex flex-col items-center">
+        <span class="flex items-center justify-center size-8 rounded-full bg-{color}-100 dark:bg-{color}-900/50 text-{color}-600 dark:text-{color}-400">
+          <span class="material-symbols-outlined text-lg">{icon}</span>
+        </span>
+      </div>
+      <div class="flex-1">
+        <div class="flex justify-between items-center">
+          <p class="text-sm font-medium text-gray-800 dark:text-gray-200">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-{color}-100 text-{color}-800 dark:bg-{color}-900/80 dark:text-{color}-300">
+              {movement.tipo_movimiento}
+            </span>
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">{formatDate(movement.fecha_movimiento)}</p>
+        </div>
+        <div class="mt-1 flex justify-between items-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Cantidad: <span class="font-semibold text-{isPositive ? 'green' : 'red'}-600 dark:text-{isPositive ? 'green' : 'red'}-400">{isPositive ? '+' : ''}{movement.cantidad}</span>
+          </p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            {movement.cantidad_anterior} <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> {movement.cantidad_nueva}
+          </p>
+        </div>
+        {#if movement.motivo || movement.usuario}
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {#if movement.motivo}Motivo: {movement.motivo}{/if}
+            {#if movement.motivo && movement.usuario} | {/if}
+            {#if movement.usuario}Usuario: {movement.usuario}{/if}
+          </p>
+        {/if}
+        {#if movement.notas}
+          <p class="mt-1 text-xs italic text-gray-400 dark:text-gray-500">{movement.notas}</p>
+        {/if}
+      </div>
+    </li>
+  {/each}
+  </ul>
+{/if}
 </div>
 </aside>
 {/if}
