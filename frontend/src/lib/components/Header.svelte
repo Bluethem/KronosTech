@@ -24,6 +24,7 @@
     '/inventario',
     '/reportes-inventario',
     '/gestion-productos',
+    '/nuevo-producto',
     '/gestion-descuentos',
     '/gestion-cupones',
     '/gestion-reembolsos'

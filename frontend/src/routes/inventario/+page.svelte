@@ -26,6 +26,19 @@
   let totalItems = $state(0);
   let totalPages = $state(0);
   
+  // Stock entry modal state
+  let productSearchQuery = $state('');
+  let searchResults = $state([]);
+  let selectedProduct = $state(null);
+  let formData = $state({
+    cantidad: '',
+    ubicacion_fisica: '',
+    lote: '',
+    fecha_vencimiento: ''
+  });
+  let submitting = $state(false);
+  let successMessage = $state('');
+  
   onMount(async () => {
     await fetchData();
   });
@@ -102,6 +115,80 @@
       currentPage--;
       fetchData();
     }
+  }
+  
+  // Stock entry functions
+  async function searchProducts() {
+    if (productSearchQuery.length < 2) {
+      searchResults = [];
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/inventario/search?search=${encodeURIComponent(productSearchQuery)}`);
+      if (!response.ok) throw new Error('Error al buscar productos');
+      searchResults = await response.json();
+    } catch (e) {
+      console.error(e);
+      searchResults = [];
+    }
+  }
+  
+  function selectProduct(product) {
+    selectedProduct = product;
+    productSearchQuery = product.nombre;
+    searchResults = [];
+  }
+  
+  async function submitStockEntry() {
+    if (!selectedProduct || !formData.cantidad) {
+      alert('Por favor complete los campos requeridos');
+      return;
+    }
+    
+    submitting = true;
+    successMessage = '';
+    
+    try {
+      const response = await fetch('http://localhost:3000/api/inventario/entrada', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_producto_detalle: selectedProduct.id_producto_detalle,
+          cantidad: parseInt(formData.cantidad),
+          ubicacion_fisica: formData.ubicacion_fisica || null,
+          lote: formData.lote || null,
+          fecha_vencimiento: formData.fecha_vencimiento || null
+        })
+      });
+      
+      if (!response.ok) throw new Error('Error al registrar entrada');
+      
+      successMessage = 'Entrada de stock registrada exitosamente';
+      setTimeout(() => {
+        resetModal();
+        fetchData(); // Refresh inventory list
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+      alert('Error al registrar entrada de stock');
+    } finally {
+      submitting = false;
+    }
+  }
+  
+  function resetModal() {
+    showStockModal = false;
+    productSearchQuery = '';
+    searchResults = [];
+    selectedProduct = null;
+    formData = {
+      cantidad: '',
+      ubicacion_fisica: '',
+      lote: '',
+      fecha_vencimiento: ''
+    };
+    successMessage = '';
   }
   
   function getStockBadgeClass(stockEstado: string) {
@@ -323,47 +410,84 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
 </div>
 <!-- Modal Body -->
 <div class="p-6 space-y-6">
+<!-- Success Message -->
+{#if successMessage}
+<div class="p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
+  <p class="text-green-800 dark:text-green-300 text-sm font-medium">{successMessage}</p>
+</div>
+{/if}
+
 <!-- Search Section -->
-<div class="space-y-4">
+<div class="space-y-4 relative">
 <p class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal">Buscar Producto por nombre o SKU</p>
 <label class="flex flex-col w-full">
 <div class="flex w-full flex-1 items-stretch rounded-lg h-12">
 <div class="text-gray-500 dark:text-gray-400 flex bg-gray-100 dark:bg-gray-700 items-center justify-center pl-4 rounded-l-lg border-r-0">
 <span class="material-symbols-outlined">search</span>
 </div>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 h-full placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Ej: Camiseta Azul M" value="Camiseta Estampada 'Classic'"/>
+<input 
+  bind:value={productSearchQuery}
+  on:input={searchProducts}
+  class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 h-full placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" 
+  placeholder="Ej: Intel Core i5" 
+/>
 </div>
 </label>
+
+<!-- Search Results Dropdown -->
+{#if searchResults.length > 0}
+<div class="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+  {#each searchResults as result}
+  <button
+    on:click={() => selectProduct(result)}
+    class="w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-left border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+  >
+    <img src={result.imagen_principal || 'https://via.placeholder.com/40'} alt={result.nombre} class="w-10 h-10 rounded object-cover" />
+    <div class="flex-1">
+      <p class="text-sm font-medium text-gray-900 dark:text-white">{result.nombre}</p>
+      <p class="text-xs text-gray-500 dark:text-gray-400">SKU: {result.sku} | Stock: {result.stock_actual}</p>
+    </div>
+  </button>
+  {/each}
 </div>
+{/if}
+</div>
+
 <!-- Selected Product Card -->
+{#if selectedProduct}
 <div class="p-4 border rounded-lg border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
 <div class="flex items-center justify-between gap-4">
 <div class="flex items-center gap-4 flex-[2_2_0px]">
-<div class="w-24 h-24 bg-center bg-no-repeat aspect-square bg-cover rounded-lg flex-shrink-0" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCUOB0B0eHS5JDXKA96YaxTbu4zEcv_P43zV9iKJgN70oumBEOuboUyZ0KUOCoIToc20UZYt8Lu3w8oM9jj2lZoCOEsyweXG0iQvU9YBOoWRsJDFN_G3r8MKeu-ztjCtOxmG6s3hZ7CG_9COAj-gV4D45AZg4jVwpKVbMfwNrdtcRzk0G22Ehv9dhx-byiIbGUuqg30Xqg6f5SB0GsSOYbV32fuHxovVn2RiwSL3hSBhtYEQf-yzLa-4jNpOvHWjq4m5veRKfHCmks");'></div>
+<div class="w-24 h-24 bg-center bg-no-repeat aspect-square bg-cover rounded-lg flex-shrink-0" style="background-image: url('{selectedProduct.imagen_principal || 'https://via.placeholder.com/96'}');"></div>
 <div class="flex flex-col gap-1">
-<p class="text-gray-900 dark:text-white text-lg font-bold leading-tight">Camiseta Estampada 'Classic'</p>
-<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">SKU: 12345-ABC</p>
-<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Stock Actual: <span class="font-semibold text-gray-700 dark:text-gray-300">150</span></p>
+<p class="text-gray-900 dark:text-white text-lg font-bold leading-tight">{selectedProduct.nombre}</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">SKU: {selectedProduct.sku}</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Stock Actual: <span class="font-semibold text-gray-700 dark:text-gray-300">{selectedProduct.stock_actual}</span></p>
 </div>
 </div>
 </div>
 </div>
+{:else}
+<div class="p-4 border border-dashed rounded-lg border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-center">
+<p class="text-gray-500 dark:text-gray-400 text-sm">Busca y selecciona un producto para continuar</p>
+</div>
+{/if}
 <!-- Form Section -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
 <!-- Cantidad -->
 <div class="flex flex-col md:col-span-1">
 <label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="quantity">Cantidad</label>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-lg font-normal leading-normal" id="quantity" placeholder="0" type="number" value=""/>
+<input bind:value={formData.cantidad} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-lg font-normal leading-normal" id="quantity" placeholder="0" type="number"/>
 </div>
 <!-- Ubicación Física -->
 <div class="flex flex-col md:col-span-1">
 <label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="location">Ubicación Física</label>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="location" placeholder="Estantería A-3" type="text" value=""/>
+<input bind:value={formData.ubicacion_fisica} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="location" placeholder="Estantería A-3" type="text"/>
 </div>
 <!-- Lote -->
 <div class="flex flex-col md:col-span-1">
 <label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="batch">Lote (Opcional)</label>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="batch" placeholder="Lote-001" type="text" value=""/>
+<input bind:value={formData.lote} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="batch" placeholder="Lote-001" type="text"/>
 </div>
 <!-- Costo Unitario -->
 <div class="flex flex-col md:col-span-1">
@@ -377,7 +501,7 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
 <div class="flex flex-col md:col-span-1">
 <label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="expiry">Vencimiento (Opcional)</label>
 <div class="relative">
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="expiry" placeholder="DD/MM/AAAA" type="text" value=""/>
+<input bind:value={formData.fecha_vencimiento} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="expiry" placeholder="YYYY-MM-DD" type="date"/>
 <span class="material-symbols-outlined absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 dark:text-gray-400 pointer-events-none">calendar_today</span>
 </div>
 </div>
@@ -393,25 +517,30 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
 </div>
 </div>
 <!-- Summary Section -->
+{#if selectedProduct && formData.cantidad}
 <div class="bg-primary/10 dark:bg-primary/20 p-4 rounded-lg flex items-center justify-center space-x-4">
 <div class="text-center">
 <p class="text-sm text-gray-600 dark:text-gray-300">Stock Actual</p>
-<p class="text-2xl font-bold text-gray-800 dark:text-white">150</p>
+<p class="text-2xl font-bold text-gray-800 dark:text-white">{selectedProduct.stock_actual}</p>
 </div>
 <span class="material-symbols-outlined text-primary dark:text-primary/80 text-3xl">arrow_forward</span>
 <div class="text-center">
 <p class="text-sm text-primary dark:text-primary/80">Nuevo Stock (calculado)</p>
-<p class="text-2xl font-bold text-primary dark:text-primary/90">175</p>
+<p class="text-2xl font-bold text-primary dark:text-primary/90">{selectedProduct.stock_actual + parseInt(formData.cantidad || 0)}</p>
 </div>
 </div>
+{/if}
 </div>
 <!-- Modal Footer -->
 <div class="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-b-xl flex justify-end items-center gap-4">
-<button on:click={() => showStockModal = false} class="px-6 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-background-dark">
+<button on:click={resetModal} class="px-6 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-background-dark">
 Cancelar
 </button>
-<button class="px-6 py-3 rounded-lg text-base font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-background-dark">
-Registrar Entrada
+<button 
+  on:click={submitStockEntry}
+  disabled={!selectedProduct || !formData.cantidad || submitting}
+  class="px-6 py-3 rounded-lg text-base font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-background-dark disabled:opacity-50 disabled:cursor-not-allowed">
+{submitting ? 'Guardando...' : 'Registrar Entrada'}
 </button>
 </div>
 </div>

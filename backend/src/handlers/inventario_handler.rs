@@ -49,6 +49,25 @@ pub struct InventarioQuery {
     pub limit: Option<i64>,
 }
 
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct ProductSearchResult {
+    pub id_producto_detalle: i32,
+    pub nombre: String,
+    pub sku: String,
+    pub marca: String,
+    pub stock_actual: i32,
+    pub imagen_principal: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EntradaStockRequest {
+    pub id_producto_detalle: i32,
+    pub cantidad: i32,
+    pub ubicacion_fisica: Option<String>,
+    pub lote: Option<String>,
+    pub fecha_vencimiento: Option<String>,
+}
+
 pub async fn get_inventario(
     State(pool): State<PgPool>,
     Query(query): Query<InventarioQuery>,
@@ -185,6 +204,85 @@ pub async fn get_inventario_stats(
         Ok(stats) => Ok(Json(stats)),
         Err(e) => {
             eprintln!("Error fetching inventario stats: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn search_products(
+    State(pool): State<PgPool>,
+    Query(query): Query<InventarioQuery>,
+) -> Result<Json<Vec<ProductSearchResult>>, StatusCode> {
+    let search_term = query.search.unwrap_or_default();
+    
+    let sql = r#"
+        SELECT 
+            pd.id_producto_detalle,
+            pd.nombre,
+            pd.sku,
+            m.nombre as marca,
+            COALESCE(i.cantidad_disponible, 0) as stock_actual,
+            pd.imagen_principal
+        FROM producto_detalle pd
+        JOIN marca m ON pd.id_marca = m.id_marca
+        LEFT JOIN inventario i ON pd.id_producto_detalle = i.id_producto_detalle
+        WHERE pd.nombre ILIKE $1 OR pd.sku ILIKE $1
+        LIMIT 10
+    "#;
+
+    let search_pattern = format!("%{}%", search_term);
+
+    match sqlx::query_as::<_, ProductSearchResult>(sql)
+        .bind(&search_pattern)
+        .fetch_all(&pool)
+        .await
+    {
+        Ok(results) => Ok(Json(results)),
+        Err(e) => {
+            eprintln!("Error searching products: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn add_stock_entry(
+    State(pool): State<PgPool>,
+    Json(payload): Json<EntradaStockRequest>,
+) -> Result<StatusCode, StatusCode> {
+    use chrono::NaiveDate;
+
+    // Parse fecha_vencimiento if provided
+    let fecha_venc = if let Some(fecha_str) = &payload.fecha_vencimiento {
+        NaiveDate::parse_from_str(fecha_str, "%Y-%m-%d").ok()
+    } else {
+        None
+    };
+
+    // Update inventory
+    let update_query = r#"
+        UPDATE inventario
+        SET 
+            cantidad_disponible = cantidad_disponible + $1,
+            ubicacion_fisica = COALESCE($2, ubicacion_fisica),
+            lote = COALESCE($3, lote),
+            fecha_vencimiento = COALESCE($4, fecha_vencimiento),
+            fecha_ultima_entrada = CURRENT_DATE,
+            fecha_actualizacion = CURRENT_TIMESTAMP
+        WHERE id_producto_detalle = $5
+    "#;
+
+    match sqlx::query(update_query)
+        .bind(payload.cantidad)
+        .bind(&payload.ubicacion_fisica)
+        .bind(&payload.lote)
+        .bind(fecha_venc)
+        .bind(payload.id_producto_detalle)
+        .execute(&pool)
+        .await
+    {
+        Ok(_) => Ok(StatusCode::OK),
+        Err(e) => {
+            eprintln!("Error adding stock entry: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
