@@ -1,6 +1,130 @@
 <script lang="ts">
-  let showStockModal = false;
-  let showHistorySidebar = false;
+  import { onMount } from 'svelte';
+  
+  let showStockModal = $state(false);
+  let showHistorySidebar = $state(false);
+  
+  // Data state
+  let inventarioItems = $state([]);
+  let stats = $state({
+    total_productos: 0,
+    stock_bajo: 0,
+    sin_stock: 0,
+    valor_total: 0
+  });
+  
+  // Filter state
+  let searchQuery = $state('');
+  let stockFilter = $state('todos');
+  let marcaFilter = $state('Todas');
+  let loading = $state(true);
+  let error = $state(null);
+  
+  // Pagination
+  let currentPage = $state(1);
+  let itemsPerPage = 10;
+  let totalItems = $state(0);
+  let totalPages = $state(0);
+  
+  onMount(async () => {
+    await fetchData();
+  });
+  
+  async function fetchData() {
+    loading = true;
+    error = null;
+    
+    try {
+      // Fetch stats
+      const statsResponse = await fetch('http://localhost:3000/api/inventario/stats');
+      if (!statsResponse.ok) throw new Error('Error al cargar estadísticas');
+      stats = await statsResponse.json();
+      
+      // Fetch inventory items
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString()
+      });
+      if (searchQuery) params.append('search', searchQuery);
+      if (stockFilter && stockFilter !== 'todos') params.append('stock_estado', stockFilter);
+      if (marcaFilter && marcaFilter !== 'Todas') params.append('marca', marcaFilter);
+      
+      const itemsResponse = await fetch(`http://localhost:3000/api/inventario?${params}`);
+      if (!itemsResponse.ok) throw new Error('Error al cargar inventario');
+      const data = await itemsResponse.json();
+      
+      inventarioItems = data.items;
+      totalItems = data.total_count;
+      totalPages = Math.ceil(totalItems / itemsPerPage);
+      
+    } catch (e) {
+      console.error(e);
+      error = e.message;
+    } finally {
+      loading = false;
+    }
+  }
+  
+  function handleSearch() {
+    currentPage = 1;
+    fetchData();
+  }
+  
+  function handleFilterChange() {
+    currentPage = 1;
+    fetchData();
+  }
+  
+  function clearFilters() {
+    searchQuery = '';
+    stockFilter = 'todos';
+    marcaFilter = 'Todas';
+    currentPage = 1;
+    fetchData();
+  }
+  
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      currentPage = page;
+      fetchData();
+    }
+  }
+  
+  function nextPage() {
+    if (currentPage < totalPages) {
+      currentPage++;
+      fetchData();
+    }
+  }
+  
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage--;
+      fetchData();
+    }
+  }
+  
+  function getStockBadgeClass(stockEstado: string) {
+    switch(stockEstado) {
+      case 'ok':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'bajo':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'agotado':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    }
+  }
+  
+  function formatCurrency(amount: number) {
+    return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount);
+  }
+  
+  function formatDate(dateString: string | null) {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('es-PE');
+  }
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark font-display">
@@ -12,40 +136,40 @@
 <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 <div class="flex flex-col gap-2 rounded-xl p-6 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50">
 <p class="text-gray-500 dark:text-gray-400 text-sm font-medium leading-normal">Total Productos Activos</p>
-<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">1,240</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">{stats.total_productos}</p>
 </div>
 <a class="flex flex-col gap-2 rounded-xl p-6 border border-yellow-300 dark:border-yellow-900 bg-white dark:bg-gray-900/50 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 transition-colors" href="#">
 <p class="text-yellow-600 dark:text-yellow-400 text-sm font-medium leading-normal">Stock Bajo</p>
-<p class="text-yellow-800 dark:text-yellow-300 tracking-tight text-3xl font-bold leading-tight">58</p>
+<p class="text-yellow-800 dark:text-yellow-300 tracking-tight text-3xl font-bold leading-tight">{stats.stock_bajo}</p>
 </a>
 <a class="flex flex-col gap-2 rounded-xl p-6 border border-red-300 dark:border-red-900 bg-white dark:bg-gray-900/50 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" href="#">
 <p class="text-red-600 dark:text-red-400 text-sm font-medium leading-normal">Sin Stock</p>
-<p class="text-red-700 dark:text-red-300 tracking-tight text-3xl font-bold leading-tight">12</p>
+<p class="text-red-700 dark:text-red-300 tracking-tight text-3xl font-bold leading-tight">{stats.sin_stock}</p>
 </a>
 <div class="flex flex-col gap-2 rounded-xl p-6 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50">
 <p class="text-gray-500 dark:text-gray-400 text-sm font-medium leading-normal">Valor Total Inventario</p>
-<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">$150,230.75</p>
+<p class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight">{formatCurrency(stats.valor_total)}</p>
 </div>
 </section>
 <section class="mb-6">
 <div class="flex flex-col md:flex-row items-center gap-4">
 <div class="relative flex-grow w-full md:w-auto">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">search</span>
-<input class="w-full h-10 pl-10 pr-4 text-sm bg-white dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 rounded-lg focus:ring-primary focus:border-primary" placeholder="Buscar por nombre o SKU..." type="text"/>
+<input bind:value={searchQuery} on:keydown={(e) => e.key === 'Enter' && handleSearch()} class="w-full h-10 pl-10 pr-4 text-sm bg-white dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 rounded-lg focus:ring-primary focus:border-primary" placeholder="Buscar por nombre o SKU..." type="text"/>
 </div>
 <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-<select class="h-10 text-sm bg-white dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 rounded-lg focus:ring-primary focus:border-primary w-full sm:w-auto">
-<option>Estado Stock: Todos</option>
-<option>Stock OK</option>
-<option>Bajo</option>
-<option>Sin Stock</option>
+<select bind:value={stockFilter} on:change={handleFilterChange} class="h-10 text-sm bg-white dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 rounded-lg focus:ring-primary focus:border-primary w-full sm:w-auto">
+<option value="todos">Estado Stock: Todos</option>
+<option value="ok">Stock OK</option>
+<option value="bajo">Bajo</option>
+<option value="agotado">Sin Stock</option>
 </select>
-<select class="h-10 text-sm bg-white dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 rounded-lg focus:ring-primary focus:border-primary w-full sm:w-auto">
-<option>Marca: Todas</option>
-<option>Marca A</option>
-<option>Marca B</option>
+<select bind:value={marcaFilter} on:change={handleFilterChange} class="h-10 text-sm bg-white dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 rounded-lg focus:ring-primary focus:border-primary w-full sm:w-auto">
+<option value="Todas">Marca: Todas</option>
+<option value="Marca A">Marca A</option>
+<option value="Marca B">Marca B</option>
 </select>
-<button class="h-10 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg w-full sm:w-auto">Limpiar</button>
+<button on:click={clearFilters} class="h-10 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg w-full sm:w-auto">Limpiar</button>
 <button class="flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg w-full sm:w-auto">
 <span class="material-symbols-outlined text-base">download</span>
 <span>Generar Reporte</span>
@@ -78,126 +202,100 @@
 </tr>
 </thead>
 <tbody>
-<tr class="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/60">
-<td class="p-4">
-<img class="w-10 h-10 rounded-md object-cover" alt="Zapatilla deportiva roja" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDc48OhfbdmqeXdjAmallc0JlVZwxSdYr1QbMjB61_p4dtImvP51MzwXHktoAB0-d8eP4ktQkFHqU-BgmNqEi7PWrF96mpRezMiBMSKt2VO6tOSc7uCSGG8ZGfxS6TbXy-kUzs8jA1IZsyhfMwGCz2wvvnbwd0F8_2BespoQGYD_6XX_C0yfHDqIEF5SbNiYD6WmwoDFADPANGIkU1onF1FfwWnBpoZceOUMJdva84NyTcbqRHstv59r4Nw7-W6oD6Q4HsBwa6N78w"/>
-</td>
-<th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
-Zapatilla Deportiva NX-200<br/>
-<span class="font-normal text-gray-500 dark:text-gray-400">SKU: ZAP-NX-200-42</span>
-</th>
-<td class="px-6 py-4">
-<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">250</span>
-</td>
-<td class="px-6 py-4">20</td>
-<td class="px-6 py-4">Almacén A, Pasillo 3</td>
-<td class="px-6 py-4">$79.99</td>
-<td class="px-6 py-4">2023-10-26 10:30 AM</td>
-<td class="px-6 py-4">
-<div class="flex items-center justify-center gap-2">
-<button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
-<button on:click={() => showHistorySidebar = true} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
-<button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
-</div>
-</td>
-</tr>
-<tr class="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/60">
-<td class="p-4">
-<img class="w-10 h-10 rounded-md object-cover" alt="Reloj de pulsera analógico" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7T2dep4CboBvI9Pw6Is06_5rIHTjyY6tONyWF9c7aXEzdvPozjiayT1-p5abiZNJOqFSWrjb2tSdyDqkPa9iKmMTTzzpkZvPegp0vu2F9Gur00x7WNg5uJ7BQga73lZHNQXs99uhjkTpFd0S42mbqtnLF7ADbidSe101ahVAuT4e-KGm80_p4T_qWEfKp8S5Wj08s1BH37Iavg4lwfkZGalmyAyuuKDZiTeufizwdHYvoNyi21n9joXD7ClWuWk61XGlksFcZxkU"/>
-</td>
-<th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
-Reloj Analógico Classic<br/>
-<span class="font-normal text-gray-500 dark:text-gray-400">SKU: REL-CLA-001-BL</span>
-</th>
-<td class="px-6 py-4">
-<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">12</span>
-</td>
-<td class="px-6 py-4">10</td>
-<td class="px-6 py-4">Almacén B, Estante 5</td>
-<td class="px-6 py-4">$120.50</td>
-<td class="px-6 py-4">2023-10-25 03:15 PM</td>
-<td class="px-6 py-4">
-<div class="flex items-center justify-center gap-2">
-<button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
-<button on:click={() => showHistorySidebar = true} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
-<button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
-</div>
-</td>
-</tr>
-<tr class="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/60">
-<td class="p-4">
-<img class="w-10 h-10 rounded-md object-cover" alt="Auriculares inalámbricos negros" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcj4EICJ2TBSbp8nmWc3Mtu8lL-xFiesLBOVUMtyq4xwnEZ2b4028q4bTKiB3xkrMugR2afxrkSeQ6rZg6Yfob6c94vdEs_WuchpkZumLZIGdNNPP79RKCrwZIFv1Dq0yl70qGCbryGB8YLIefMHCD5tQ9NmDQWR5ng_Sxztqg8_IGeXXOEMWY3maVYh8F95QTUmTkij9FHWWNmrzvdvvKNu9jd1ELmbZ1YIqINucWiX3Twp_CS_xAm0aXQjxeKiFA4bR_TK6ifd0"/>
-</td>
-<th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
-Auriculares Inalámbricos Pro<br/>
-<span class="font-normal text-gray-500 dark:text-gray-400">SKU: AUR-PRO-BLK-01</span>
-</th>
-<td class="px-6 py-4">
-<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">0</span>
-</td>
-<td class="px-6 py-4">15</td>
-<td class="px-6 py-4">Tienda Central</td>
-<td class="px-6 py-4">$99.00</td>
-<td class="px-6 py-4">2023-10-20 09:00 AM</td>
-<td class="px-6 py-4">
-<div class="flex items-center justify-center gap-2">
-<button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
-<button on:click={() => showHistorySidebar = true} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
-<button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
-</div>
-</td>
-</tr>
-<tr class="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/60">
-<td class="p-4">
-<img class="w-10 h-10 rounded-md object-cover" alt="Mochila de lona gris" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAexgqAyvKIdnpKGJvA915eU8-qCiSpJiIs_0gogPAKkYK1_22LTS84f_58atXEzZHwK-krSLUShOXXCw6aTRpr_tP8805lPMMzkynFgnrj3y91OvDmvqwnXnLCX2F_WIRFjAWGWfq-Y9Zg4YNwT6o5NJzMR2Qn5hF5k0I2LtDauh5R_r-1TYWXCCNJg1bznaRxb1FFMUYSd_8LPHhxbJw0frias2xOGx2kc8Cqh5vpaqWEbz8QsO4QLIy1jigjln6z9_q1X0--3E8"/>
-</td>
-<th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
-Mochila Urbana Explorer<br/>
-<span class="font-normal text-gray-500 dark:text-gray-400">SKU: MCH-EXP-GRY-LG</span>
-</th>
-<td class="px-6 py-4">
-<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">85</span>
-</td>
-<td class="px-6 py-4">10</td>
-<td class="px-6 py-4">Almacén A, Pasillo 1</td>
-<td class="px-6 py-4">$45.00</td>
-<td class="px-6 py-4">2023-10-26 11:00 AM</td>
-<td class="px-6 py-4">
-<div class="flex items-center justify-center gap-2">
-<button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
-<button on:click={() => showHistorySidebar = true} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
-<button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
-</div>
-</td>
-</tr>
+{#if loading}
+  <tr>
+    <td colspan="8" class="p-4 text-center text-gray-500 dark:text-gray-400">Cargando inventario...</td>
+  </tr>
+{:else if inventarioItems.length === 0}
+  <tr>
+    <td colspan="8" class="p-4 text-center text-gray-500 dark:text-gray-400">No se encontraron productos</td>
+  </tr>
+{:else}
+  {#each inventarioItems as item}
+  <tr class="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/60">
+    <td class="p-4">
+      <img class="w-10 h-10 rounded-md object-cover" alt={item.nombre} src={item.imagen_principal || 'https://via.placeholder.com/40'}/>
+    </td>
+    <th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
+      {item.nombre}<br/>
+      <span class="font-normal text-gray-500 dark:text-gray-400">SKU: {item.sku}</span>
+    </th>
+    <td class="px-6 py-4">
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStockBadgeClass(item.stock_estado)}">
+        {item.cantidad_disponible}
+      </span>
+    </td>
+    <td class="px-6 py-4">{item.cantidad_minima}</td>
+    <td class="px-6 py-4">{item.ubicacion_fisica || 'Sin ubicación'}</td>
+    <td class="px-6 py-4">{formatCurrency(item.precio_venta)}</td>
+    <td class="px-6 py-4">{formatDate(item.fecha_actualizacion)}</td>
+    <td class="px-6 py-4">
+      <div class="flex items-center justify-center gap-2">
+        <button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
+        <button on:click={() => showHistorySidebar = true} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
+        <button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
+      </div>
+    </td>
+  </tr>
+  {/each}
+{/if}
 </tbody>
 </table>
 </div>
 <nav aria-label="Table navigation" class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-3 md:space-y-0 p-4 border-t border-gray-200 dark:border-gray-800">
 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-Mostrando <span class="font-semibold text-gray-900 dark:text-white">1-10</span> de <span class="font-semibold text-gray-900 dark:text-white">150</span> productos
+Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)}</span> de <span class="font-semibold text-gray-900 dark:text-white">{totalItems}</span> productos
 </span>
 <ul class="inline-flex items-stretch -space-x-px">
 <li>
-<button class="flex items-center justify-center h-full py-1.5 px-3 ml-0 text-gray-500 bg-white rounded-l-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
+<button 
+  on:click={prevPage}
+  disabled={currentPage === 1}
+  class="flex items-center justify-center h-full py-1.5 px-3 ml-0 text-gray-500 bg-white rounded-l-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">
 <span class="sr-only">Anterior</span>
 <span class="material-symbols-outlined text-xl">chevron_left</span>
 </button>
 </li>
+{#if totalPages > 0}
+  {#if currentPage > 2}
+  <li>
+    <button on:click={() => goToPage(1)} class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">1</button>
+  </li>
+  {/if}
+  {#if currentPage > 3}
+  <li>
+    <span class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400">...</span>
+  </li>
+  {/if}
+  {#if currentPage > 1}
+  <li>
+    <button on:click={() => goToPage(currentPage - 1)} class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">{currentPage - 1}</button>
+  </li>
+  {/if}
+  <li>
+    <button aria-current="page" class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-primary bg-primary/10 border border-primary hover:bg-primary/20 hover:text-primary-700 dark:border-primary dark:bg-primary/20 dark:text-white">{currentPage}</button>
+  </li>
+  {#if currentPage < totalPages}
+  <li>
+    <button on:click={() => goToPage(currentPage + 1)} class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">{currentPage + 1}</button>
+  </li>
+  {/if}
+  {#if currentPage < totalPages - 2}
+  <li>
+    <span class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400">...</span>
+  </li>
+  {/if}
+  {#if currentPage < totalPages - 1}
+  <li>
+    <button on:click={() => goToPage(totalPages)} class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">{totalPages}</button>
+  </li>
+  {/if}
+{/if}
 <li>
-<button class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">1</button>
-</li>
-<li>
-<button aria-current="page" class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-primary bg-primary/10 border border-primary hover:bg-primary/20 hover:text-primary-700 dark:border-primary dark:bg-primary/20 dark:text-white">2</button>
-</li>
-<li>
-<button class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">...</button>
-</li>
-<li>
-<button class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">15</button>
-</li>
-<li>
-<button class="flex items-center justify-center h-full py-1.5 px-3 leading-tight text-gray-500 bg-white rounded-r-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
+<button 
+  on:click={nextPage}
+  disabled={currentPage === totalPages || totalPages === 0}
+  class="flex items-center justify-center h-full py-1.5 px-3 leading-tight text-gray-500 bg-white rounded-r-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">
 <span class="sr-only">Siguiente</span>
 <span class="material-symbols-outlined text-xl">chevron_right</span>
 </button>
