@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { theme, toggleTheme } from '$lib/stores/theme';
   import { searchHistory } from '$lib/stores/searchHistory';
@@ -19,12 +20,22 @@
   let userMenuRef: HTMLDivElement;
 
   $: isDark = $theme === 'dark';
+
+  // User menu text (H3nr7)
   $: userMenuButtonText = $authUser ? `${$authUser.nombre} ${$authUser.apellido}` : 'Iniciar sesión';
 
-  onMount(() => {
-    // Inicializar autenticación
-    initAuth();
-  });
+  // Check if current page is an admin page (main)
+  $: isAdminPage = [
+    '/gestion-pedidos',
+    '/reportes-ventas',
+    '/inventario',
+    '/reportes-inventario',
+    '/gestion-productos',
+    '/nuevo-producto',
+    '/gestion-descuentos',
+    '/gestion-cupones',
+    '/gestion-reembolsos'
+  ].some(path => $page.url.pathname.startsWith(path));
   
   async function handleAutocomplete() {
     if (searchQuery.trim().length < 2) {
@@ -76,9 +87,10 @@
   }
 
   onMount(() => {
-    // Inicializar autenticación
+    // Inicializar autenticación (H3nr7)
     initAuth();
 
+    // Event listener para cerrar menús al hacer click fuera
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
@@ -100,10 +112,20 @@
       <h2 class="hidden sm:block text-lg font-bold leading-tight tracking-[-0.015em]">KronosTech</h2>
     </a>
     <nav class="hidden lg:flex items-center gap-9">
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/catalogo">Catálogo</a>
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/ofertas">Ofertas</a>
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/novedades">Novedades</a>
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/destacados">Destacados</a>
+      {#if isAdminPage}
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-pedidos">Gestión de Pedidos</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-ventas">Reportes de Ventas</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/inventario">Inventario</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-inventario">Reportes de Inventario</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-descuentos">Gestión de descuentos</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-cupones">Gestión de cupones</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-reembolsos">Gestión de reembolsos</a>
+      {:else}
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/catalogo">Catálogo</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/ofertas">Ofertas</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/novedades">Novedades</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/destacados">Destacados</a>
+      {/if}
     </nav>
   </div>
 
@@ -285,10 +307,20 @@
 {#if mobileMenuOpen}
   <div class="lg:hidden bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark">
     <nav class="flex flex-col gap-4 p-4">
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/catalogo">Catálogo</a>
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/ofertas">Ofertas</a>
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/novedades">Novedades</a>
-      <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/destacados">Destacados</a>
+      {#if isAdminPage}
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-pedidos">Gestión de Pedidos</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-ventas">Reportes de Ventas</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/inventario">Inventario</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-inventario">Reportes de Inventario</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-descuentos">Gestión de descuentos</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-cupones">Gestión de cupones</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-reembolsos">Gestión de reembolsos</a>
+      {:else}
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/catalogo">Catálogo</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/ofertas">Ofertas</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/novedades">Novedades</a>
+        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/destacados">Destacados</a>
+      {/if}
       
       <!-- Búsqueda móvil -->
       <form on:submit={handleSearch} class="flex md:hidden">

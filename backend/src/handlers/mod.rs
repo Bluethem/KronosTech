@@ -1,10 +1,19 @@
+// Handlers - Catálogo
 pub mod catalogo_handler;
+
+// Handlers - Autenticación y Carrito (H3nr7)
 pub mod auth_handler;
 pub mod carrito_handler;
 pub mod direccion_handler;
 pub mod checkout_handler;
 
-// Re-exportaciones para uso en routes
+// Handlers - Administración (main)
+pub mod venta;
+pub mod inventario_handler;
+pub mod producto_handler;
+pub mod descuento_handler;
+
+// Re-exportaciones para uso en routes - Auth & Carrito
 pub use auth_handler::{register_handler, login_handler, get_current_user_handler, logout_handler};
 pub use carrito_handler::{
     get_carrito_handler,

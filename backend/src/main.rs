@@ -14,7 +14,17 @@ use axum::{
     Router,
 };
 use config::{DatabaseConfig, Settings};
-use routes::{catalogo_routes, auth_routes, carrito_routes, direccion_routes, checkout_routes};
+use routes::{
+    catalogo_routes,
+    auth_routes,
+    carrito_routes,
+    direccion_routes,
+    checkout_routes,
+    venta_routes,
+    inventario_routes,
+    producto_routes,
+    descuento_routes
+};
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -43,17 +53,24 @@ async fn main() {
 
     // Construir rutas
     let app = Router::new()
+        // Rutas de catálogo (público)
         .nest("/api", catalogo_routes(pool.clone()))
+        // Rutas de autenticación y carrito (H3nr7)
         .nest("/api/auth", auth_routes(pool.clone()))
         .nest("/api", carrito_routes(pool.clone()))
         .nest("/api", direccion_routes(pool.clone()))
-        .nest("/api", checkout_routes(pool))
+        .nest("/api", checkout_routes(pool.clone()))
+        // Rutas de administración (main)
+        .nest("/api", venta_routes(pool.clone()))
+        .nest("/api", inventario_routes(pool.clone()))
+        .nest("/api", producto_routes(pool.clone()))
+        .nest("/api", descuento_routes(pool))
         .layer(cors);
 
     let addr = settings.server_address();
     println!("🌐 Server listening on http://{}", addr);
     println!("📦 API Endpoints:");
-    println!("   === Catálogo ===");
+    println!("   === Catálogo (Público) ===");
     println!("   GET  /api/familias");
     println!("   GET  /api/categorias");
     println!("   GET  /api/subcategorias");
@@ -83,6 +100,14 @@ async fn main() {
     println!("   POST   /api/checkout/procesar");
     println!("   GET    /api/pedidos");
     println!("   GET    /api/pedidos/{{id}}");
+    println!("   === Administración - Ventas ===");
+    println!("   GET  /api/ventas");
+    println!("   === Administración - Inventario ===");
+    println!("   (Endpoints de inventario)");
+    println!("   === Administración - Productos ===");
+    println!("   (Endpoints de gestión de productos)");
+    println!("   === Administración - Descuentos ===");
+    println!("   (Endpoints de descuentos)";
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)
