@@ -1,28 +1,175 @@
 <script lang="ts">
-  let isCreateSidebarOpen = false;
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
+  // Data from API
+  let cupones = [];
+  let allCupones = []; // Store all cupones for client-side pagination
+  let stats = {
+    total_activos: 0,
+    usos_hoy: 0,
+    descuento_mes: 0
+  };
+  
+  // Pagination
+  let currentPage = 1;
+  let itemsPerPage = 10;
+  let totalPages = 1;
+  
+  // UI State
+  let isCreateSidebarOpen = false;
+  let isDetailsSidebarOpen = false;
+  let activeTab = 'info';
+  let isMassAssignModalOpen = false;
+  let massAssignStep = 1;
+  let selectedCupon = null;
+  
+  // Mass Assignment State
+  let usuarios = [];
+  let selectedUsuarios = [];
+  let userSearchQuery = '';
+  let assignmentResult = null;
+  let isAssigning = false;
+  
+  // Search and filters
+  let searchQuery = '';
+  let tipoFilter = '';
+  let estadoFilter = '';
+  
+  onMount(async () => {
+    await Promise.all([
+      fetchCupones(),
+      fetchStats()
+    ]);
+  });
+  
+  async function fetchCupones() {
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (tipoFilter) params.append('tipo', tipoFilter);
+      if (estadoFilter) params.append('estado', estadoFilter);
+      
+      const response = await fetch(`http://localhost:3000/api/cupones?${params}`);
+      if (response.ok) {
+        allCupones = await response.json();
+        updatePagination();
+      }
+    } catch (e) {
+      console.error('Error fetching cupones:', e);
+    }
+  }
+  
+  function updatePagination() {
+    totalPages = Math.ceil(allCupones.length / itemsPerPage);
+    if (currentPage > totalPages && totalPages > 0) {
+      currentPage = totalPages;
+    }
+    if (currentPage < 1) currentPage = 1;
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    cupones = allCupones.slice(startIndex, endIndex);
+  }
+  
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      currentPage = page;
+      updatePagination();
+    }
+  }
+  
+  function nextPage() {
+    if (currentPage < totalPages) {
+      currentPage++;
+      updatePagination();
+    }
+  }
+  
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage--;
+      updatePagination();
+    }
+  }
+  
+  function getPageNumbers() {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  }
+  
+  async function fetchStats() {
+    try {
+      const response = await fetch('http://localhost:3000/api/cupones/stats');
+      if (response.ok) {
+        stats = await response.json();
+      }
+    } catch (e) {
+      console.error('Error fetching stats:', e);
+    }
+  }
+  
+  async function deleteCupon(cupon) {
+    if (!confirm(`¿Estás seguro de eliminar el cupón "${cupon.codigo}"?`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/cupones/${cupon.id_cupon}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        await Promise.all([fetchCupones(), fetchStats()]);
+      }
+    } catch (e) {
+      console.error('Error deleting cupon:', e);
+    }
+  }
+  
   function openCreateSidebar() {
-    isCreateSidebarOpen = true;
+    goto('/gestion-cupones/nuevo');
   }
 
   function closeCreateSidebar() {
     isCreateSidebarOpen = false;
   }
 
-  let isDetailsSidebarOpen = false;
-
-  function openDetailsSidebar() {
+  function openDetailsSidebar(cupon) {
+    selectedCupon = cupon;
     isDetailsSidebarOpen = true;
   }
 
   function closeDetailsSidebar() {
     isDetailsSidebarOpen = false;
+    selectedCupon = null;
   }
-
-  let activeTab = 'info';
-
-  let isMassAssignModalOpen = false;
-  let massAssignStep = 1;
 
   function openMassAssignModal() {
     isMassAssignModalOpen = true;
@@ -31,6 +178,121 @@
 
   function closeMassAssignModal() {
     isMassAssignModalOpen = false;
+    massAssignStep = 1;
+    selectedUsuarios = [];
+    assignmentResult = null;
+  }
+  
+  async function fetchUsuarios() {
+    try {
+      const params = new URLSearchParams();
+      if (userSearchQuery) params.append('search', userSearchQuery);
+      
+      const response = await fetch(`http://localhost:3000/api/usuarios?${params}`);
+      if (response.ok) {
+        usuarios = await response.json();
+      }
+    } catch (e) {
+      console.error('Error fetching usuarios:', e);
+    }
+  }
+  
+  function toggleUsuarioSelection(id_usuario) {
+    const index = selectedUsuarios.indexOf(id_usuario);
+    if (index > -1) {
+      selectedUsuarios = selectedUsuarios.filter(id => id !== id_usuario);
+    } else {
+      selectedUsuarios = [...selectedUsuarios, id_usuario];
+    }
+  }
+  
+  function selectAllUsuarios() {
+    selectedUsuarios = usuarios.map(u => u.id_usuario);
+  }
+  
+  function deselectAllUsuarios() {
+    selectedUsuarios = [];
+  }
+  
+  async function proceedToConfirmation() {
+    if (selectedUsuarios.length === 0) {
+      alert('Debes seleccionar al menos un usuario');
+      return;
+    }
+    massAssignStep = 2;
+  }
+  
+  async function assignCuponToUsers() {
+    if (!selectedCupon || selectedUsuarios.length === 0) {
+      return;
+    }
+    
+    isAssigning = true;
+    
+    try {
+      const response = await fetch('http://localhost:3000/api/cupones/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id_cupon: selectedCupon.id_cupon,
+          usuarios: selectedUsuarios
+        })
+      });
+      
+      if (response.ok) {
+        assignmentResult = await response.json();
+        massAssignStep = 3;
+      } else {
+        alert('Error al asignar cupones');
+      }
+    } catch (e) {
+      console.error('Error assigning cupones:', e);
+      alert('Error de conexión');
+    } finally {
+      isAssigning = false;
+    }
+  }
+  
+  function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  }
+  
+  function getTipoBadgeClass(tipo) {
+    const map = {
+      'porcentaje': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+      'monto_fijo': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+      'envio_gratis': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+    };
+    return map[tipo] || 'bg-gray-100 text-gray-800';
+  }
+  
+  function getTipoLabel(tipo) {
+    const map = {
+      'porcentaje': 'Porcentaje',
+      'monto_fijo': 'Monto Fijo',
+      'envio_gratis': 'Envío Gratis'
+    };
+    return map[tipo] || tipo;
+  }
+  
+  function formatValor(tipo, valor) {
+    if (tipo === 'envio_gratis') return '-';
+    if (tipo === 'porcentaje') return `${valor}%`;
+    return `$${valor}`;
+  }
+  
+  // Debounce search
+  let searchTimeout;
+  function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentPage = 1; // Reset to first page on search
+      fetchCupones();
+    }, 300);
   }
 </script>
 
@@ -50,26 +312,18 @@
           </button>
         </div>
         <!-- Stats -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <p class="text-slate-600 dark:text-slate-300 text-sm font-medium">Cupones activos ahora</p>
-            <p class="text-slate-900 dark:text-white tracking-light text-3xl font-bold">84</p>
-            <p class="text-green-600 dark:text-green-500 text-sm font-medium">+5% vs ayer</p>
+            <p class="text-slate-900 dark:text-white tracking-light text-3xl font-bold">{stats.total_activos}</p>
           </div>
           <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <p class="text-slate-600 dark:text-slate-300 text-sm font-medium">Usos totales hoy</p>
-            <p class="text-slate-900 dark:text-white tracking-light text-3xl font-bold">1,230</p>
-            <p class="text-green-600 dark:text-green-500 text-sm font-medium">+12% vs ayer</p>
+            <p class="text-slate-900 dark:text-white tracking-light text-3xl font-bold">{stats.usos_hoy}</p>
           </div>
           <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <p class="text-slate-600 dark:text-slate-300 text-sm font-medium">Descuento total (mes)</p>
-            <p class="text-slate-900 dark:text-white tracking-light text-3xl font-bold">$4,500.50</p>
-            <p class="text-green-600 dark:text-green-500 text-sm font-medium">+8% vs mes anterior</p>
-          </div>
-          <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <p class="text-slate-600 dark:text-slate-300 text-sm font-medium">Cupón más usado</p>
-            <p class="text-primary tracking-light text-2xl font-bold font-mono">PROCESADOR15</p>
-            <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">254 usos hoy</p>
+            <p class="text-slate-900 dark:text-white tracking-light text-3xl font-bold">${stats.descuento_mes || 0}</p>
           </div>
         </div>
         <!-- Toolbar and Search -->
@@ -81,7 +335,7 @@
                   <div class="text-slate-500 dark:text-slate-400 flex bg-background-light dark:bg-background-dark items-center justify-center pl-3 rounded-l-lg border border-r-0 border-slate-300 dark:border-slate-700">
                     <span class="material-symbols-outlined text-base">search</span>
                   </div>
-                  <input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-800 dark:text-slate-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-l-0 border-slate-300 dark:border-slate-700 bg-background-light dark:bg-background-dark h-full placeholder:text-slate-500 dark:placeholder:text-slate-400 px-4 rounded-l-none pl-2 text-sm font-normal" placeholder="Buscar por código o nombre de cupón..." value=""/>
+                  <input bind:value={searchQuery} on:input={handleSearch} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-800 dark:text-slate-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-l-0 border-slate-300 dark:border-slate-700 bg-background-light dark:bg-background-dark h-full placeholder:text-slate-500 dark:placeholder:text-slate-400 px-4 rounded-l-none pl-2 text-sm font-normal" placeholder="Buscar por código o nombre de cupón..."/>
                 </div>
               </label>
             </div>
@@ -116,135 +370,93 @@
                 </tr>
               </thead>
               <tbody>
+                {#each cupones as cupon}
                 <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <td class="px-6 py-4">
                     <div class="group relative flex items-center">
-                      <span class="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded px-2 py-1 text-xs font-semibold">GAMING2024</span>
-                      <button class="absolute -right-7 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary">
-                        <span class="material-symbols-outlined text-base">content_copy</span>
-                      </button>
+                      <span class="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded px-2 py-1 text-xs font-semibold">{cupon.codigo}</span>
                     </div>
                   </td>
-                  <td class="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">Descuento Gaming</td>
-                  <td class="px-6 py-4"><span class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-blue-900 dark:text-blue-300">Porcentaje</span></td>
-                  <td class="px-6 py-4">15%</td>
-                  <td class="px-6 py-4">01 Ene - 31 Dic</td>
+                  <td class="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{cupon.nombre}</td>
+                  <td class="px-6 py-4"><span class="{getTipoBadgeClass(cupon.tipo_cupon)} text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{getTipoLabel(cupon.tipo_cupon)}</span></td>
+                  <td class="px-6 py-4">{formatValor(cupon.tipo_cupon, cupon.valor)}</td>
+                  <td class="px-6 py-4">{formatDate(cupon.fecha_inicio)} - {formatDate(cupon.fecha_fin)}</td>
                   <td class="px-6 py-4">
                     <div class="flex items-center gap-2">
                       <div class="w-20 h-2 bg-slate-200 dark:bg-slate-700 rounded-full">
-                        <div class="h-2 bg-primary rounded-full" style="width: 45%"></div>
+                        <div class="h-2 bg-primary rounded-full" style="width: {cupon.usos_maximos_totales ? (cupon.usos_actuales / cupon.usos_maximos_totales * 100) : 0}%"></div>
                       </div>
-                      <span>450/1000</span>
+                      <span>{cupon.usos_actuales || 0}{cupon.usos_maximos_totales ? `/${cupon.usos_maximos_totales}` : ''}</span>
                     </div>
                   </td>
                   <td class="px-6 py-4">
-                    <span class="bg-slate-100 text-slate-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-slate-700 dark:text-slate-300">Uso limitado</span>
+                    <span class="bg-slate-100 text-slate-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-slate-700 dark:text-slate-300">{cupon.activo ? 'Activo' : 'Inactivo'}</span>
                   </td>
                   <td class="px-6 py-4 text-right">
                     <div class="flex items-center justify-end gap-1">
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary" on:click={openDetailsSidebar}><span class="material-symbols-outlined text-lg">edit</span></button>
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary"><span class="material-symbols-outlined text-lg">content_copy</span></button>
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                      <button on:click={() => openDetailsSidebar(cupon)} class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary" title="Ver detalles"><span class="material-symbols-outlined text-lg">visibility</span></button>
+                      <a href="/gestion-cupones/editar/{cupon.id_cupon}" class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary" title="Editar"><span class="material-symbols-outlined text-lg">edit</span></a>
+                      <button on:click={() => deleteCupon(cupon)} class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500" title="Eliminar"><span class="material-symbols-outlined text-lg">delete</span></button>
                     </div>
                   </td>
                 </tr>
-                <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td class="px-6 py-4">
-                    <div class="group relative flex items-center">
-                      <span class="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded px-2 py-1 text-xs font-semibold">FREESHIP</span>
-                      <button class="absolute -right-7 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary">
-                        <span class="material-symbols-outlined text-base">content_copy</span>
-                      </button>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">Envío Gratis Enero</td>
-                  <td class="px-6 py-4"><span class="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">Envío Gratis</span></td>
-                  <td class="px-6 py-4">-</td>
-                  <td class="px-6 py-4">01 Ene - 31 Ene</td>
-                  <td class="px-6 py-4">
-                    <div class="flex items-center gap-2">
-                      <div class="w-20 h-2 bg-slate-200 dark:bg-slate-700 rounded-full">
-                        <div class="h-2 bg-primary rounded-full" style="width: 80%"></div>
-                      </div>
-                      <span>1600/2000</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <span class="bg-slate-100 text-slate-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-slate-700 dark:text-slate-300">Primera compra</span>
-                  </td>
-                  <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end gap-1">
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary" on:click={openDetailsSidebar}><span class="material-symbols-outlined text-lg">edit</span></button>
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary"><span class="material-symbols-outlined text-lg">content_copy</span></button>
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
-                    </div>
+                {/each}
+                {#if cupones.length === 0}
+                <tr>
+                  <td colspan="8" class="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                    No se encontraron cupones
                   </td>
                 </tr>
-                <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td class="px-6 py-4">
-                    <div class="group relative flex items-center">
-                      <span class="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded px-2 py-1 text-xs font-semibold">BIENVENIDO10</span>
-                      <button class="absolute -right-7 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary">
-                        <span class="material-symbols-outlined text-base">content_copy</span>
-                      </button>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">Nuevos Usuarios</td>
-                  <td class="px-6 py-4"><span class="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-purple-900 dark:text-purple-300">Monto Fijo</span></td>
-                  <td class="px-6 py-4">$10.00</td>
-                  <td class="px-6 py-4">01 Ene - 30 Jun</td>
-                  <td class="px-6 py-4">
-                    <div class="flex items-center gap-2">
-                      <div class="w-20 h-2 bg-slate-200 dark:bg-slate-700 rounded-full">
-                        <div class="h-2 bg-primary rounded-full" style="width: 15%"></div>
-                      </div>
-                      <span>75/500</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <span class="bg-slate-100 text-slate-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-slate-700 dark:text-slate-300">Nuevos usuarios</span>
-                  </td>
-                  <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end gap-1">
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary"><span class="material-symbols-outlined text-lg">content_copy</span></button>
-                      <button class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
-                    </div>
-                  </td>
-                </tr>
+                {/if}
               </tbody>
             </table>
           </div>
           <!-- Pagination -->
           <nav aria-label="Table navigation" class="flex items-center justify-between p-4">
-            <span class="text-sm font-normal text-slate-500 dark:text-slate-400">Mostrando <span class="font-semibold text-slate-900 dark:text-white">1-10</span> de <span class="font-semibold text-slate-900 dark:text-white">1000</span></span>
+            <span class="text-sm font-normal text-slate-500 dark:text-slate-400">
+              Mostrando 
+              <span class="font-semibold text-slate-900 dark:text-white">
+                {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, allCupones.length)}
+              </span> 
+              de 
+              <span class="font-semibold text-slate-900 dark:text-white">{allCupones.length}</span>
+            </span>
             <ul class="inline-flex items-center -space-x-px">
               <li>
-                <a class="block px-3 py-2 ml-0 leading-tight text-slate-500 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white" href="#">
+                <button 
+                  on:click={prevPage}
+                  disabled={currentPage === 1}
+                  class="block px-3 py-2 ml-0 leading-tight text-slate-500 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <span class="sr-only">Previous</span>
                   <span class="material-symbols-outlined text-lg">chevron_left</span>
-                </a>
+                </button>
               </li>
+              {#each getPageNumbers() as page}
+                <li>
+                  {#if page === '...'}
+                    <span class="px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">...</span>
+                  {:else}
+                    <button
+                      on:click={() => goToPage(page)}
+                      class="{page === currentPage 
+                        ? 'z-10 px-3 py-2 leading-tight text-primary bg-primary/10 border border-primary hover:bg-primary/20 dark:border-primary dark:bg-primary/20 dark:text-white' 
+                        : 'px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'}"
+                    >
+                      {page}
+                    </button>
+                  {/if}
+                </li>
+              {/each}
               <li>
-                <a class="px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white" href="#">1</a>
-              </li>
-              <li>
-                <a class="px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white" href="#">2</a>
-              </li>
-              <li>
-                <a aria-current="page" class="z-10 px-3 py-2 leading-tight text-primary bg-primary/10 border border-primary hover:bg-primary/20 dark:border-primary dark:bg-primary/20 dark:text-white" href="#">3</a>
-              </li>
-              <li>
-                <a class="px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white" href="#">...</a>
-              </li>
-              <li>
-                <a class="px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white" href="#">100</a>
-              </li>
-              <li>
-                <a class="block px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 rounded-r-lg hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white" href="#">
+                <button
+                  on:click={nextPage}
+                  disabled={currentPage === totalPages}
+                  class="block px-3 py-2 leading-tight text-slate-500 bg-white border border-slate-300 rounded-r-lg hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <span class="sr-only">Next</span>
                   <span class="material-symbols-outlined text-lg">chevron_right</span>
-                </a>
+                </button>
               </li>
             </ul>
           </nav>
@@ -1134,6 +1346,297 @@
             </div>
             {/if}
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Details Sidebar Overlay -->
+{#if isDetailsSidebarOpen}
+  <div class="fixed inset-0 bg-black/50 z-40 transition-opacity" on:click={closeDetailsSidebar} on:keydown={(e) => e.key === 'Escape' && closeDetailsSidebar()} role="button" tabindex="0"></div>
+{/if}
+
+<!-- Details Sidebar -->
+<div class="fixed inset-y-0 right-0 flex max-w-full z-50 transform transition-transform duration-300 ease-in-out {isDetailsSidebarOpen ? 'translate-x-0' : 'translate-x-full'}">
+  <div class="relative w-screen max-w-2xl">
+    <div class="flex h-full flex-col overflow-y-scroll bg-white dark:bg-slate-900 shadow-xl">
+      <div class="flex-1">
+        <!-- Header -->
+        <div class="bg-white dark:bg-slate-900 px-6 py-6 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Detalles del Cupón</h2>
+              {#if selectedCupon}
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Código: <span class="font-mono font-semibold">{selectedCupon.codigo}</span></p>
+              {/if}
+            </div>
+            <button on:click={closeDetailsSidebar} class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+
+        {#if selectedCupon}
+          <!-- Content -->
+          <div class="px-6 py-6 space-y-6">
+            <!-- Basic Info -->
+            <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Información General</h3>
+              <dl class="space-y-3">
+                <div>
+                  <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Nombre</dt>
+                  <dd class="mt-1 text-sm text-slate-900 dark:text-white">{selectedCupon.nombre}</dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Tipo</dt>
+                  <dd class="mt-1">
+                    <span class="{getTipoBadgeClass(selectedCupon.tipo_cupon)} text-xs font-medium px-2.5 py-0.5 rounded-full">
+                      {getTipoLabel(selectedCupon.tipo_cupon)}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Valor</dt>
+                  <dd class="mt-1 text-sm text-slate-900 dark:text-white font-semibold">{formatValor(selectedCupon.tipo_cupon, selectedCupon.valor)}</dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Vigencia</dt>
+                  <dd class="mt-1 text-sm text-slate-900 dark:text-white">{formatDate(selectedCupon.fecha_inicio)} - {formatDate(selectedCupon.fecha_fin)}</dd>
+                </div>
+                <div>
+                  <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Estado</dt>
+                  <dd class="mt-1">
+                    <span class="{selectedCupon.activo ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'} text-xs font-medium px-2.5 py-0.5 rounded-full">
+                      {selectedCupon.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- Usage Stats -->
+            <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Estadísticas de Uso</h3>
+              <dl class="space-y-3">
+                <div>
+                  <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Usos Actuales</dt>
+                  <dd class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{selectedCupon.usos_actuales || 0}</dd>
+                </div>
+                {#if selectedCupon.usos_maximos_totales}
+                  <div>
+                    <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Usos Máximos</dt>
+                    <dd class="mt-1 text-sm text-slate-900 dark:text-white">{selectedCupon.usos_maximos_totales}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Progreso</dt>
+                    <dd class="mt-2">
+                      <div class="w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full">
+                        <div class="h-3 bg-primary rounded-full" style="width: {(selectedCupon.usos_actuales / selectedCupon.usos_maximos_totales * 100)}%"></div>
+                      </div>
+                      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {Math.round((selectedCupon.usos_actuales / selectedCupon.usos_maximos_totales * 100))}% utilizado
+                      </p>
+                    </dd>
+                  </div>
+                {/if}
+              </dl>
+            </div>
+
+            <!-- Assigned Users (Placeholder) -->
+            <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Usuarios Asignados</h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400">
+                Este cupón está disponible para todos los usuarios que cumplan con las restricciones configuradas.
+              </p>
+              <!-- Future: Add list of specifically assigned users from asignacion_cupon table -->
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mass Assignment Modal -->
+{#if isMassAssignModalOpen}
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeMassAssignModal} on:keydown={(e) => e.key === 'Escape' && closeMassAssignModal()} role="button" tabindex="0">
+    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden" on:click|stopPropagation>
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Asignación Masiva de Cupones</h2>
+          <button on:click={closeMassAssignModal} class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <!-- Steps -->
+        <div class="flex gap-4 mt-4">
+          <button 
+            class="flex-1 pb-3 border-b-2 {massAssignStep === 1 ? 'border-primary text-primary' : 'border-transparent text-slate-400'}"
+            on:click={() => massAssignStep = 1}
+          >
+            <span class="font-semibold">1. Selección</span>
+          </button>
+          <button 
+            class="flex-1 pb-3 border-b-2 {massAssignStep === 2 ? 'border-primary text-primary' : 'border-transparent text-slate-400'}"
+            disabled={massAssignStep < 2}
+          >
+            <span class="font-semibold">2. Confirmación</span>
+          </button>
+          <button 
+            class="flex-1 pb-3 border-b-2 {massAssignStep === 3 ? 'border-primary text-primary' : 'border-transparent text-slate-400'}"
+            disabled={massAssignStep < 3}
+          >
+            <span class="font-semibold">3. Resultado</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        {#if massAssignStep === 1}
+          <!-- Step 1: User Selection -->
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Buscar usuarios
+              </label>
+              <div class="flex gap-2">
+                <div class="flex-1 relative">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                  <input
+                    bind:value={userSearchQuery}
+                    on:input={fetchUsuarios}
+                    type="text"
+                    placeholder="Buscar por nombre o email..."
+                    class="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                <button on:click={fetchUsuarios} class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                  Buscar
+                </button>
+              </div>
+            </div>
+
+            <div class="flex gap-2 items-center">
+              <button on:click={selectAllUsuarios} class="text-sm text-primary hover:underline">Seleccionar todos</button>
+              <span class="text-slate-300 dark:text-slate-700">|</span>
+              <button on:click={deselectAllUsuarios} class="text-sm text-primary hover:underline">Deseleccionar todos</button>
+              <span class="ml-auto text-sm text-slate-600 dark:text-slate-400">
+                {selectedUsuarios.length} usuario{selectedUsuarios.length !== 1 ? 's' : ''} seleccionado{selectedUsuarios.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg divide-y divide-slate-200 dark:divide-slate-800 max-h-96 overflow-y-auto">
+              {#each usuarios as usuario}
+                <label class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsuarios.includes(usuario.id_usuario)}
+                    on:change={() => toggleUsuarioSelection(usuario.id_usuario)}
+                    class="w-5 h-5 text-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 rounded focus:ring-2 focus:ring-primary/50"
+                  />
+                  <div class="flex-1">
+                    <p class="font-medium text-slate-900 dark:text-white">{usuario.nombre}</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{usuario.email}</p>
+                  </div>
+                </label>
+              {/each}
+
+              {#if usuarios.length === 0}
+                <div class="p-8 text-center text-slate-500 dark:text-slate-400">
+                  {userSearchQuery ? 'No se encontraron usuarios' : 'Busca usuarios para comenzar'}
+                </div>
+              {/if}
+            </div>
+          </div>
+        {:else if massAssignStep === 2}
+          <!-- Step 2: Confirmation -->
+          <div class="space-y-4">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">Confirmar asignación</h3>
+              <p class="text-blue-800 dark:text-blue-300 text-sm">
+                Estás a punto de asignar el cupón <span class="font-mono font-semibold">{selectedCupon?.codigo}</span> a {selectedUsuarios.length} usuario{selectedUsuarios.length !== 1 ? 's' : ''}.
+              </p>
+            </div>
+
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-4">
+              <h4 class="font-semibold text-slate-900 dark:text-white mb-3">Usuarios seleccionados:</h4>
+              <div class="space-y-2 max-h-64 overflow-y-auto">
+                {#each usuarios.filter(u => selectedUsuarios.includes(u.id_usuario)) as usuario}
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="material-symbols-outlined text-primary text-base">check_circle</span>
+                    <span class="text-slate-700 dark:text-slate-300">{usuario.nombre} ({usuario.email})</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        {:else if massAssignStep === 3}
+          <!-- Step 3: Results -->
+          <div class="space-y-4">
+            {#if assignmentResult}
+              <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 text-center">
+                <span class="material-symbols-outlined text-green-600 dark:text-green-400 text-5xl mb-3">check_circle</span>
+                <h3 class="text-xl font-bold text-green-900 dark:text-green-200 mb-2">¡Asignación completada!</h3>
+                <div class="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <p class="text-2xl font-bold text-green-600 dark:text-green-400">{assignmentResult.assigned}</p>
+                    <p class="text-sm text-green-800 dark:text-green-300">Asignados</p>
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-slate-600 dark:text-slate-400">{assignmentResult.failed}</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-400">Fallidos</p>
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-slate-900 dark:text-white">{assignmentResult.total}</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-400">Total</p>
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-between">
+        <button
+          on:click={closeMassAssignModal}
+          class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+        >
+          {massAssignStep === 3 ? 'Cerrar' : 'Cancelar'}
+        </button>
+
+        <div class="flex gap-2">
+          {#if massAssignStep === 2}
+            <button
+              on:click={() => massAssignStep = 1}
+              class="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              Atrás
+            </button>
+            <button
+              on:click={assignCuponToUsers}
+              disabled={isAssigning}
+              class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {#if isAssigning}
+                <span class="material-symbols-outlined animate-spin">progress_activity</span>
+              {/if}
+              {isAssigning ? 'Asignando...' : 'Confirmar Asignación'}
+            </button>
+          {:else if massAssignStep === 1}
+            <button
+              on:click={proceedToConfirmation}
+              disabled={selectedUsuarios.length === 0}
+              class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continuar
+            </button>
+          {/if}
         </div>
       </div>
     </div>
