@@ -3,6 +3,7 @@
   
   let showStockModal = $state(false);
   let showHistorySidebar = $state(false);
+  let showAdjustModal = $state(false);
   
   // Data state
   let inventarioItems = $state([]);
@@ -43,6 +44,18 @@
   let selectedProductHistory = $state(null);
   let historyMovements = $state([]);
   let loadingHistory = $state(false);
+  
+  // Adjustment modal state
+  let selectedProductAdjust = $state(null);
+  let adjustFormData = $state({
+    cantidad_disponible: '',
+    cantidad_minima: '',
+    cantidad_maxima: '',
+    ubicacion_fisica: '',
+    motivo: ''
+  });
+  let adjustSubmitting = $state(false);
+  let adjustSuccessMessage = $state('');
   
   onMount(async () => {
     await fetchData();
@@ -259,6 +272,88 @@
       default: return 'gray';
     }
   }
+  
+  function openAdjustModal(product) {
+    selectedProductAdjust = product;
+    adjustFormData = {
+      cantidad_disponible: product.cantidad_disponible.toString(),
+      cantidad_minima: product.cantidad_minima.toString(),
+      cantidad_maxima: product.cantidad_maxima?.toString() || '',
+      ubicacion_fisica: product.ubicacion_fisica || '',
+      motivo: ''
+    };
+    showAdjustModal = true;
+  }
+  
+  async function submitAdjustment() {
+    if (!selectedProductAdjust || !adjustFormData.cantidad_disponible || !adjustFormData.motivo) {
+      alert('Por favor complete los campos requeridos (cantidad disponible y motivo)');
+      return;
+    }
+    
+    adjustSubmitting = true;
+    adjustSuccessMessage = '';
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/inventario/${selectedProductAdjust.id_producto_detalle}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cantidad_disponible: parseInt(adjustFormData.cantidad_disponible),
+          cantidad_minima: parseInt(adjustFormData.cantidad_minima),
+          cantidad_maxima: adjustFormData.cantidad_maxima ? parseInt(adjustFormData.cantidad_maxima) : null,
+          ubicacion_fisica: adjustFormData.ubicacion_fisica || null,
+          motivo: adjustFormData.motivo
+        })
+      });
+      
+      if (!response.ok) throw new Error('Error al actualizar inventario');
+      
+      adjustSuccessMessage = 'Inventario actualizado exitosamente';
+      setTimeout(() => {
+        resetAdjustModal();
+        fetchData(); // Refresh inventory list
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+      alert('Error al actualizar inventario');
+    } finally {
+      adjustSubmitting = false;
+    }
+  }
+  
+  function resetAdjustModal() {
+    showAdjustModal = false;
+    selectedProductAdjust = null;
+    adjustFormData = {
+      cantidad_disponible: '',
+      cantidad_minima: '',
+      cantidad_maxima: '',
+      ubicacion_fisica: '',
+      motivo: ''
+    };
+    adjustSuccessMessage = '';
+  }
+  
+  async function deleteProduct(product) {
+    const confirmDelete = confirm(`¿Está seguro de que desea eliminar "${product.nombre}" del inventario?\n\nEsta acción eliminará el registro de inventario y todo su historial de movimientos.`);
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/inventario/${product.id_producto_detalle}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) throw new Error('Error al eliminar producto');
+      
+      alert('Producto eliminado exitosamente');
+      fetchData(); // Refresh inventory list
+    } catch (e) {
+      console.error(e);
+      alert('Error al eliminar producto del inventario');
+    }
+  }
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark font-display">
@@ -365,9 +460,9 @@
     <td class="px-6 py-4">{formatDate(item.fecha_actualizacion)}</td>
     <td class="px-6 py-4">
       <div class="flex items-center justify-center gap-2">
-        <button class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">tune</span></button>
-        <button on:click={() => openHistorySidebar(item)} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">history</span></button>
-        <button class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><span class="material-symbols-outlined text-xl">delete</span></button>
+        <button on:click={() => openAdjustModal(item)} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" title="Ajustar inventario"><span class="material-symbols-outlined text-xl">tune</span></button>
+        <button on:click={() => openHistorySidebar(item)} class="p-2 text-gray-500 hover:text-primary dark:hover:text-primary-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" title="Ver historial"><span class="material-symbols-outlined text-xl">history</span></button>
+        <button on:click={() => deleteProduct(item)} class="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" title="Eliminar del inventario"><span class="material-symbols-outlined text-xl">delete</span></button>
       </div>
     </td>
   </tr>
@@ -594,6 +689,89 @@ Cancelar
 </div>
 {/if}
 
+<!-- Adjustment Modal -->
+{#if showAdjustModal}
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8" style="background-color: rgba(0, 0, 0, 0.5);">
+<!-- Modal Container -->
+<div class="w-full max-w-3xl rounded-xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col">
+<!-- Modal Header -->
+<div class="p-6 border-b border-gray-200 dark:border-gray-700">
+<div class="flex flex-wrap justify-between items-center gap-3">
+<div class="flex flex-col gap-1">
+<p class="text-gray-900 dark:text-white text-2xl font-bold leading-tight">Ajustar Inventario</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Modifica las cantidades y configuración del inventario.</p>
+</div>
+</div>
+</div>
+<!-- Modal Body -->
+<div class="p-6 space-y-6">
+<!-- Success Message -->
+{#if adjustSuccessMessage}
+<div class="p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
+  <p class="text-green-800 dark:text-green-300 text-sm font-medium">{adjustSuccessMessage}</p>
+</div>
+{/if}
+
+<!-- Product Info Card -->
+{#if selectedProductAdjust}
+<div class="p-4 border rounded-lg border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
+<div class="flex items-center gap-4">
+<img src={selectedProductAdjust.imagen_principal || 'https://via.placeholder.com/64'} alt={selectedProductAdjust.nombre} class="w-16 h-16 rounded object-cover" />
+<div class="flex-1">
+  <p class="text-gray-900 dark:text-white text-lg font-bold leading-tight">{selectedProductAdjust.nombre}</p>
+  <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">SKU: {selectedProductAdjust.sku}</p>
+  <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Stock Actual: <span class="font-semibold text-gray-700 dark:text-gray-300">{selectedProductAdjust.cantidad_disponible}</span></p>
+</div>
+</div>
+</div>
+{/if}
+
+<!-- Form Section -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+<!-- Cantidad Disponible -->
+<div class="flex flex-col md:col-span-1">
+<label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-quantity">Cantidad Disponible *</label>
+<input bind:value={adjustFormData.cantidad_disponible} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-lg font-normal leading-normal" id="adjust-quantity" placeholder="0" type="number"/>
+</div>
+<!-- Cantidad Mínima -->
+<div class="flex flex-col md:col-span-1">
+<label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-min">Cantidad Mínima *</label>
+<input bind:value={adjustFormData.cantidad_minima} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="adjust-min" placeholder="0" type="number"/>
+</div>
+<!-- Cantidad Máxima -->
+<div class="flex flex-col md:col-span-1">
+<label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-max">Cantidad Máxima (Opcional)</label>
+<input bind:value={adjustFormData.cantidad_maxima} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="adjust-max" placeholder="0" type="number"/>
+</div>
+<!-- Ubicación Física -->
+<div class="flex flex-col md:col-span-1">
+<label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-location">Ubicación Física</label>
+<input bind:value={adjustFormData.ubicacion_fisica} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="adjust-location" placeholder="Estantería A-3" type="text"/>
+</div>
+<!-- Motivo -->
+<div class="flex flex-col md:col-span-2">
+<label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-motivo">Motivo del Ajuste *</label>
+<textarea bind:value={adjustFormData.motivo} class="form-textarea w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-24 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="adjust-motivo" placeholder="Ej: Corrección por inventario físico, ajuste por merma, etc."></textarea>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-b-xl flex justify-end items-center gap-4">
+<button on:click={resetAdjustModal} class="px-6 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-background-dark">
+Cancelar
+</button>
+<button 
+  on:click={submitAdjustment}
+  disabled={!selectedProductAdjust || !adjustFormData.cantidad_disponible || !adjustFormData.motivo || adjustSubmitting}
+  class="px-6 py-3 rounded-lg text-base font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-background-dark disabled:opacity-50 disabled:cursor-not-allowed">
+{adjustSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
+</button>
+</div>
+</div>
+</div>
+{/if}
+
+
 <!-- History Sidebar -->
 {#if showHistorySidebar}
 <div class="fixed inset-0 bg-gray-900/50 dark:bg-gray-900/80 z-40" on:click={() => showHistorySidebar = false}></div>
@@ -657,7 +835,9 @@ Cancelar
   {#each historyMovements as movement}
     {@const color = getMovementColor(movement.tipo_movimiento)}
     {@const icon = getMovementIcon(movement.tipo_movimiento)}
-    {@const isPositive = movement.cantidad > 0}
+    {@const tipoLower = movement.tipo_movimiento.toLowerCase()}
+    {@const isPositive = tipoLower === 'entrada' || tipoLower === 'devolucion'}
+    {@const displayCantidad = (tipoLower === 'salida' || tipoLower === 'venta') && movement.cantidad > 0 ? -movement.cantidad : movement.cantidad}
     <li class="flex items-start gap-4">
       <div class="flex flex-col items-center">
         <span class="flex items-center justify-center size-8 rounded-full bg-{color}-100 dark:bg-{color}-900/50 text-{color}-600 dark:text-{color}-400">
@@ -675,7 +855,7 @@ Cancelar
         </div>
         <div class="mt-1 flex justify-between items-center">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            Cantidad: <span class="font-semibold text-{isPositive ? 'green' : 'red'}-600 dark:text-{isPositive ? 'green' : 'red'}-400">{isPositive ? '+' : ''}{movement.cantidad}</span>
+            Cantidad: <span class="font-semibold text-{isPositive ? 'green' : 'red'}-600 dark:text-{isPositive ? 'green' : 'red'}-400">{isPositive ? '+' : ''}{displayCantidad}</span>
           </p>
           <p class="text-sm text-gray-500 dark:text-gray-400">
             {movement.cantidad_anterior} <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> {movement.cantidad_nueva}
