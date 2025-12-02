@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
+  
+  // Get discount ID from URL
+  $: descuentoId = $page.params.id;
   
   // Form state
   let nombre = '';
@@ -19,12 +23,74 @@
   // UI state
   let productos: Array<{id_producto_detalle: number, nombre: string}> = [];
   let loading = false;
+  let loadingData = true;
   let errorMessage = '';
   let successMessage = '';
   
   onMount(async () => {
-    await fetchProductos();
+    await Promise.all([
+      fetchProductos(),
+      loadDescuentoData()
+    ]);
   });
+  
+  async function loadDescuentoData() {
+    try {
+      const response = await fetch(`http://localhost:3000/api/descuentos/${descuentoId}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Map database values back to UI values
+        nombre = data.nombre;
+        descripcion = data.descripcion || '';
+        tipoDescuento = mapTipoDescuentoFromDB(data.tipo_descuento);
+        valor = data.valor.toString();
+        aplicaA = mapAplicaAFromDB(data.aplica_a);
+        idReferencia = data.id_referencia;
+        compraMinima = data.compra_minima ? data.compra_minima.toString() : '';
+        cantidadMinima = data.cantidad_minima ? data.cantidad_minima.toString() : '';
+        usosMaximos = data.usos_maximos ? data.usos_maximos.toString() : '';
+        
+        // Format dates for datetime-local input
+        fechaInicio = formatDateTimeForInput(data.fecha_inicio);
+        fechaFin = formatDateTimeForInput(data.fecha_fin);
+        activo = data.activo ?? true;
+      } else {
+        errorMessage = 'Error al cargar el descuento';
+      }
+    } catch (e) {
+      console.error('Error loading descuento:', e);
+      errorMessage = 'Error de conexión al cargar el descuento';
+    } finally {
+      loadingData = false;
+    }
+  }
+  
+  function mapTipoDescuentoFromDB(tipo: string): string {
+    const map = {
+      'porcentaje': 'Porcentaje',
+      'monto_fijo': 'Monto Fijo',
+      'envio_gratis': 'Envío Gratis'
+    };
+    return map[tipo] || tipo;
+  }
+  
+  function mapAplicaAFromDB(aplica: string): string {
+    const map = {
+      'global': 'Global',
+      'producto': 'Producto',
+      'categoria': 'Categoría',
+      'marca': 'Marca',
+      'familia': 'Familia'
+    };
+    return map[aplica] || aplica;
+  }
+  
+  function formatDateTimeForInput(dateString: string): string {
+    if (!dateString) return '';
+    // Convert "2025-12-03 14:30:00" to "2025-12-03T14:30"
+    return dateString.slice(0, 16).replace(' ', 'T');
+  }
   
   async function fetchProductos() {
     try {
@@ -128,8 +194,8 @@
       
       console.log('Sending payload:', payload); // Debug
       
-      const response = await fetch('http://localhost:3000/api/descuentos', {
-        method: 'POST',
+      const response = await fetch(`http://localhost:3000/api/descuentos/${descuentoId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -137,7 +203,7 @@
       });
       
       if (response.ok) {
-        successMessage = 'Descuento creado exitosamente';
+        successMessage = 'Descuento actualizado exitosamente';
         setTimeout(() => {
           goto('/gestion-descuentos');
         }, 1500);
@@ -165,13 +231,20 @@
         <div class="flex flex-col sm:flex-row flex-wrap justify-between items-start gap-4 mb-6">
           <div class="flex items-center gap-4">
             <h1 class="text-3xl lg:text-4xl font-black tracking-tight text-[#111418] dark:text-white">Gestión de Descuentos</h1>
-            <div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary/10 dark:bg-primary/20 px-4">
-              <span class="material-symbols-outlined text-primary dark:text-primary-400 !text-base">add_circle</span>
-              <p class="text-primary dark:text-primary-400 text-sm font-medium">Nuevo Descuento</p>
+            <div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-blue-100 dark:bg-blue-900/20 px-4">
+              <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 !text-base">edit</span>
+              <p class="text-blue-600 dark:text-blue-400 text-sm font-medium">Editar Descuento</p>
             </div>
           </div>
         </div>
 
+        <!-- Loading State -->
+        {#if loadingData}
+          <div class="mb-4 p-8 text-center bg-white dark:bg-background-dark rounded-xl shadow-sm border border-gray-200 dark:border-slate-800">
+            <p class="text-gray-600 dark:text-gray-400">Cargando datos del descuento...</p>
+          </div>
+        {:else}
+        
         <!-- Success/Error Messages -->
         {#if successMessage}
           <div class="mb-4 p-4 bg-green-100 dark:bg-green-900/50 border border-green-400 dark:border-green-700 text-green-800 dark:text-green-200 rounded-lg">
@@ -191,8 +264,8 @@
             <!-- Page Heading inside form card -->
             <div class="flex flex-wrap justify-between gap-3 p-4 border-b border-gray-200 dark:border-slate-800">
               <div class="flex min-w-72 flex-col gap-3">
-                <p class="text-[#111418] dark:text-white tracking-light text-[32px] font-bold leading-tight">Crear Nuevo Descuento</p>
-                <p class="text-[#617589] dark:text-slate-400 text-sm font-normal leading-normal">Completa la información para registrar un nuevo descuento en el sistema.</p>
+                <p class="text-[#111418] dark:text-white tracking-light text-[32px] font-bold leading-tight">Editar Descuento</p>
+                <p class="text-[#617589] dark:text-slate-400 text-sm font-normal leading-normal">Modifica la información del descuento seleccionado.</p>
               </div>
             </div>
             
@@ -321,11 +394,12 @@
             <div class="flex justify-end gap-4 p-4 mt-6 border-t border-gray-200 dark:border-slate-800">
               <a href="/gestion-descuentos" class="flex items-center justify-center h-12 px-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-[#111418] dark:text-white text-base font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Cancelar</a>
               <button on:click={handleSubmit} disabled={loading} class="flex items-center justify-center h-12 px-6 rounded-lg bg-primary text-white text-base font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? 'Guardando...' : 'Guardar Descuento'}
+                {loading ? 'Actualizando...' : 'Actualizar Descuento'}
               </button>
             </div>
           </div>
         </div>
+        {/if}
       </div>
     </main>
   </div>
