@@ -107,7 +107,7 @@ async fn main() {
     println!("   === Administración - Productos ===");
     println!("   (Endpoints de gestión de productos)");
     println!("   === Administración - Descuentos ===");
-    println!("   (Endpoints de descuentos)";
+    println!("   (Endpoints de descuentos)");
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)

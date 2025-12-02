@@ -121,8 +121,10 @@ cargo run
 Por defecto la API corre en:
 
 ```
-http://localhost:3001
+http://localhost:3000
 ```
+
+(Configurable via variable de entorno `PORT` en `backend/.env`)
 
 ---
 
