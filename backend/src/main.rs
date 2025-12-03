@@ -14,7 +14,7 @@ use axum::{
     Router,
 };
 use config::{DatabaseConfig, Settings};
-use routes::{catalogo_routes, venta_routes, inventario_routes, producto_routes, descuento_routes, cupon_routes};
+use routes::{catalogo_routes, venta_routes, inventario_routes, producto_routes, descuento_routes, cupon_routes, reembolso_routes};
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -48,7 +48,8 @@ async fn main() {
         .nest("/api", inventario_routes(pool.clone()))
         .nest("/api", producto_routes(pool.clone()))
         .nest("/api", descuento_routes(pool.clone()))
-        .nest("/api", cupon_routes(pool))
+        .nest("/api", cupon_routes(pool.clone()))
+        .nest("/api", reembolso_routes(pool))
         .layer(cors);
 
     let addr = settings.server_address();
