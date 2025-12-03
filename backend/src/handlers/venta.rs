@@ -422,3 +422,96 @@ pub async fn get_reporte_ventas(
         tabla_productos,
     }))
 }
+
+// Update venta estado
+#[derive(Debug, Deserialize)]
+pub struct UpdateEstadoRequest {
+    pub estado: String,
+}
+
+fn normalize_estado(estado: &str) -> String {
+    let normalized = match estado {
+        "Pendiente" => "pendiente",
+        "Confirmado" => "confirmado",
+        "Procesando" | "En Proceso" => "procesando",
+        "Enviado" => "enviado",
+        "Entregado" => "entregado",
+        "Cancelado" => "cancelado",
+        "Devuelto" => "devuelto",
+        _ => return estado.to_lowercase()
+    };
+    normalized.to_string()
+}
+
+pub async fn update_venta_estado(
+    State(pool): State<PgPool>,
+    axum::extract::Path(id_venta): axum::extract::Path<i32>,
+    Json(payload): Json<UpdateEstadoRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let normalized_estado = normalize_estado(&payload.estado);
+    
+    let query = r#"
+        UPDATE venta 
+        SET estado = $1::estado_pedido, fecha_actualizacion = CURRENT_TIMESTAMP
+        WHERE id_venta = $2
+    "#;
+
+    match sqlx::query(query)
+        .bind(&normalized_estado)
+        .bind(id_venta)
+        .execute(&pool)
+        .await
+    {
+        Ok(result) => {
+            if result.rows_affected() > 0 {
+                Ok(StatusCode::OK)
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
+        }
+        Err(e) => {
+            eprintln!("Error updating venta estado: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Update venta tracking info
+#[derive(Debug, Deserialize)]
+pub struct UpdateTrackingRequest {
+    pub numero_tracking: Option<String>,
+    pub empresa_envio: Option<String>,
+}
+
+pub async fn update_venta_tracking(
+    State(pool): State<PgPool>,
+    axum::extract::Path(id_venta): axum::extract::Path<i32>,
+    Json(payload): Json<UpdateTrackingRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let query = r#"
+        UPDATE venta 
+        SET numero_tracking = $1,
+            estado = 'enviado'::estado_pedido,
+            fecha_actualizacion = CURRENT_TIMESTAMP
+        WHERE id_venta = $2
+    "#;
+
+    match sqlx::query(query)
+        .bind(&payload.numero_tracking)
+        .bind(id_venta)
+        .execute(&pool)
+        .await
+    {
+        Ok(result) => {
+            if result.rows_affected() > 0 {
+                Ok(StatusCode::OK)
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
+        }
+        Err(e) => {
+            eprintln!("Error updating venta tracking: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
