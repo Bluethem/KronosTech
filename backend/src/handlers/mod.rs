@@ -12,6 +12,11 @@ pub mod venta;
 pub mod inventario_handler;
 pub mod producto_handler;
 pub mod descuento_handler;
+pub mod cupon_handler;
+pub mod reembolso_handler;
+
+// Re-exportaciones para uso en routes - Catálogo
+pub use catalogo_handler::*;
 
 // Re-exportaciones para uso en routes - Auth & Carrito
 pub use auth_handler::{register_handler, login_handler, get_current_user_handler, logout_handler};

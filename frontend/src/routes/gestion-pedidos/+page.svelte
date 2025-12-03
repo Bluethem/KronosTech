@@ -1,9 +1,21 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { onMount } from 'svelte';
 	
 	export let data: PageData;
 	
 	$: orders = data.orders || [];
+	
+	let jsPDF: any;
+	let autoTable: any;
+	
+	onMount(async () => {
+		// Dynamically import jsPDF and autoTable
+		const jsPDFModule = await import('jspdf');
+		jsPDF = jsPDFModule.default;
+		const autoTableModule = await import('jspdf-autotable');
+		autoTable = autoTableModule.default;
+	});
 	
 	function formatDate(dateString: string | null): string {
 		if (!dateString) return 'N/A';
@@ -65,6 +77,273 @@
 		const diffHours = (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60);
 		return diffHours > 24;
 	}
+	
+	function generatePDFReport() {
+		if (!jsPDF || !autoTable) {
+			alert('Cargando librería PDF...');
+			return;
+		}
+		
+		const doc = new jsPDF();
+		const pageWidth = doc.internal.pageSize.getWidth();
+		const pageHeight = doc.internal.pageSize.getHeight();
+		
+		// Header with gradient background
+		doc.setFillColor(59, 130, 246); // Primary blue color
+		doc.rect(0, 0, pageWidth, 40, 'F');
+		
+		// Company name
+		doc.setTextColor(255, 255, 255);
+		doc.setFontSize(24);
+		doc.setFont('helvetica', 'bold');
+		doc.text('KronosTech', 15, 20);
+		
+		// Report title
+		doc.setFontSize(14);
+		doc.setFont('helvetica', 'normal');
+		doc.text('Reporte de Pedidos', 15, 30);
+		
+		// Date
+		doc.setFontSize(10);
+		const currentDate = new Date().toLocaleDateString('es-ES', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+		doc.text(`Generado: ${currentDate}`, pageWidth - 15, 30, { align: 'right' });
+		
+		// Reset text color
+		doc.setTextColor(0, 0, 0);
+		
+		// Summary statistics
+		const totalOrders = orders.length;
+		const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+		const pendingOrders = orders.filter(o => o.estado?.toLowerCase() === 'pendiente').length;
+		const completedOrders = orders.filter(o => o.estado?.toLowerCase() === 'entregado').length;
+		
+		let yPosition = 50;
+		
+		// Summary box
+		doc.setFillColor(249, 250, 251);
+		doc.roundedRect(15, yPosition, pageWidth - 30, 35, 3, 3, 'F');
+		
+		doc.setFontSize(11);
+		doc.setFont('helvetica', 'bold');
+		doc.text('Resumen General', 20, yPosition + 8);
+		
+		doc.setFont('helvetica', 'normal');
+		doc.setFontSize(9);
+		doc.text(`Total de Pedidos: ${totalOrders}`, 20, yPosition + 16);
+		doc.text(`Ingresos Totales: ${formatCurrency(totalRevenue)}`, 20, yPosition + 23);
+		doc.text(`Pendientes: ${pendingOrders}`, 20, yPosition + 30);
+		
+		doc.text(`Completados: ${completedOrders}`, 80, yPosition + 16);
+		doc.text(`En Proceso: ${orders.filter(o => o.estado?.toLowerCase() === 'procesando').length}`, 80, yPosition + 23);
+		doc.text(`Cancelados: ${orders.filter(o => o.estado?.toLowerCase() === 'cancelado').length}`, 80, yPosition + 30);
+		
+		yPosition += 45;
+		
+		// Table title
+		doc.setFontSize(12);
+		doc.setFont('helvetica', 'bold');
+		doc.text('Detalle de Pedidos', 15, yPosition);
+		
+		yPosition += 5;
+		
+		// Prepare table data
+		const tableData = orders.map(order => [
+			order.numero_pedido || 'N/A',
+			order.nombre_usuario || 'N/A',
+			formatDate(order.fecha_pedido),
+			order.estado || 'N/A',
+			order.estado_pago || 'N/A',
+			formatCurrency(order.total)
+		]);
+		
+		// Generate table
+		autoTable(doc, {
+			startY: yPosition,
+			head: [['Nº Pedido', 'Cliente', 'Fecha', 'Estado Pedido', 'Estado Pago', 'Total']],
+			body: tableData,
+			theme: 'striped',
+			headStyles: {
+				fillColor: [59, 130, 246],
+				textColor: [255, 255, 255],
+				fontStyle: 'bold',
+				fontSize: 9
+			},
+			bodyStyles: {
+				fontSize: 8,
+				textColor: [50, 50, 50]
+			},
+			alternateRowStyles: {
+				fillColor: [249, 250, 251]
+			},
+			columnStyles: {
+				0: { cellWidth: 25 },
+				1: { cellWidth: 40 },
+				2: { cellWidth: 35 },
+				3: { cellWidth: 25 },
+				4: { cellWidth: 25 },
+				5: { cellWidth: 25, halign: 'right' }
+			},
+			margin: { left: 15, right: 15 },
+			didDrawPage: function(data) {
+				// Footer
+				const footerY = pageHeight - 15;
+				doc.setFontSize(8);
+				doc.setTextColor(128, 128, 128);
+				doc.text(
+					`Página ${doc.internal.getCurrentPageInfo().pageNumber}`,
+					pageWidth / 2,
+					footerY,
+					{ align: 'center' }
+				);
+				doc.text('KronosTech © 2024', 15, footerY);
+			}
+		});
+		
+		// Save the PDF
+		doc.save(`Reporte_Pedidos_${new Date().toISOString().split('T')[0]}.pdf`);
+	}
+	
+	// Modal state
+	let isEditModalOpen = false;
+	let isShippingModalOpen = false;
+	let selectedOrder: any = null;
+	let newStatus = '';
+	let shippingCompany = '';
+	let trackingNumber = '';
+	
+	function openEditModal(order: any) {
+		selectedOrder = order;
+		newStatus = order.estado || '';
+		isEditModalOpen = true;
+	}
+	
+	function closeEditModal() {
+		isEditModalOpen = false;
+		selectedOrder = null;
+		newStatus = '';
+	}
+	
+	async function saveOrderStatus() {
+		if (!selectedOrder || !newStatus) return;
+		
+		try {
+			const response = await fetch(`http://localhost:3000/api/ventas/${selectedOrder.id_venta}/estado`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ estado: newStatus })
+			});
+			
+			if (response.ok) {
+				// Update local data
+				selectedOrder.estado = newStatus;
+				orders = orders; // Trigger reactivity
+				alert('Estado actualizado exitosamente');
+				closeEditModal();
+			} else {
+				alert('Error al actualizar el estado');
+			}
+		} catch (e) {
+			alert('Error de conexión');
+		}
+	}
+	
+	function openShippingModal(order: any) {
+		selectedOrder = order;
+		trackingNumber = order.numero_tracking || '';
+		shippingCompany = '';
+		isShippingModalOpen = true;
+	}
+	
+	function closeShippingModal() {
+		isShippingModalOpen = false;
+		selectedOrder = null;
+		trackingNumber = '';
+		shippingCompany = '';
+	}
+	
+	async function saveShippingInfo() {
+		if (!selectedOrder) return;
+		
+		try {
+			const response = await fetch(`http://localhost:3000/api/ventas/${selectedOrder.id_venta}/tracking`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ 
+					numero_tracking: trackingNumber,
+					empresa_envio: shippingCompany 
+				})
+			});
+			
+			if (response.ok) {
+				// Update local data
+				selectedOrder.numero_tracking = trackingNumber;
+				selectedOrder.estado = 'enviado'; // Update status to enviado
+				orders = orders; // Trigger reactivity
+				alert('Información de envío actualizada exitosamente. Estado cambiado a Enviado.');
+				closeShippingModal();
+			} else {
+				alert('Error al actualizar la información de envío');
+			}
+		} catch (e) {
+			alert('Error de conexión');
+		}
+	}
+	
+	// Pagination
+	let currentPage = 1;
+	let itemsPerPage = 10;
+	
+	$: totalPages = Math.ceil(orders.length / itemsPerPage);
+	$: paginatedOrders = orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+	$: startIndex = (currentPage - 1) * itemsPerPage + 1;
+	$: endIndex = Math.min(currentPage * itemsPerPage, orders.length);
+	
+	function goToPage(page: number) {
+		if (page >= 1 && page <= totalPages) {
+			currentPage = page;
+		}
+	}
+	
+	function changeItemsPerPage(newLimit: number) {
+		itemsPerPage = newLimit;
+		currentPage = 1; // Reset to first page
+	}
+	
+	// Generate page numbers for pagination
+	$: pageNumbers = (() => {
+		const pages = [];
+		const maxVisible = 5;
+		
+		if (totalPages <= maxVisible) {
+			for (let i = 1; i <= totalPages; i++) {
+				pages.push(i);
+			}
+		} else {
+			if (currentPage <= 3) {
+				for (let i = 1; i <= 4; i++) pages.push(i);
+				pages.push(-1); // Ellipsis
+				pages.push(totalPages);
+			} else if (currentPage >= totalPages - 2) {
+				pages.push(1);
+				pages.push(-1); // Ellipsis
+				for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+			} else {
+				pages.push(1);
+				pages.push(-1); // Ellipsis
+				for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+				pages.push(-1); // Ellipsis
+				pages.push(totalPages);
+			}
+		}
+		
+		return pages;
+	})();
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root bg-background-light dark:bg-background-dark font-display text-[#111418] dark:text-gray-200">
@@ -79,7 +358,7 @@
 <p class="text-red-600 dark:text-red-400 text-sm font-medium">Pedidos Pendientes &gt; 24h</p>
 </div>
 </div>
-<button class="flex items-center justify-center gap-2 min-w-[84px] cursor-pointer rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<button on:click={generatePDFReport} class="flex items-center justify-center gap-2 min-w-[84px] cursor-pointer rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
 <span class="material-symbols-outlined">download</span>
 <span class="truncate">Generar Reporte</span>
 </button>
@@ -156,7 +435,7 @@
 </tr>
 </thead>
 <tbody>
-{#each orders as order}
+{#each paginatedOrders as order}
 <tr class="{isPendingOver24h(order.fecha_pedido, order.estado) ? 'bg-red-50 dark:bg-red-500/10' : 'bg-white dark:bg-gray-900/50'} border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
 <th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
 <div class="flex items-center gap-2">
@@ -181,8 +460,8 @@
 <td class="px-6 py-4 text-center">
 <div class="flex items-center justify-center gap-2">
 <a href="/gestion-pedidos/{order.id_venta}" class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"><span class="material-symbols-outlined">visibility</span></a>
-<button class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><span class="material-symbols-outlined">edit</span></button>
-<button class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><span class="material-symbols-outlined">local_shipping</span></button>
+<button on:click={() => openEditModal(order)} class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Editar estado"><span class="material-symbols-outlined">edit</span></button>
+<button on:click={() => openShippingModal(order)} class="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Actualizar envío"><span class="material-symbols-outlined">local_shipping</span></button>
 </div>
 </td>
 </tr>
@@ -198,39 +477,54 @@ No se encontraron pedidos
 </div>
 <nav aria-label="Table navigation" class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-3 md:space-y-0 p-4">
 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-                            Mostrando <span class="font-semibold text-gray-900 dark:text-white">1-10</span> de <span class="font-semibold text-gray-900 dark:text-white">1000</span> resultados
-                        </span>
+	Mostrando <span class="font-semibold text-gray-900 dark:text-white">{startIndex}-{endIndex}</span> de <span class="font-semibold text-gray-900 dark:text-white">{orders.length}</span> resultados
+</span>
 <div class="flex items-center gap-4">
 <div class="flex items-center gap-2 text-sm">
 <span class="text-gray-500 dark:text-gray-400">Items por página:</span>
-<select class="form-select bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg text-sm p-1 pr-7 focus:ring-primary focus:border-primary">
-<option>10</option>
-<option>25</option>
-<option>50</option>
-<option>100</option>
+<select bind:value={itemsPerPage} on:change={() => changeItemsPerPage(itemsPerPage)} class="form-select bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded-lg text-sm p-1 pr-7 focus:ring-primary focus:border-primary">
+	<option value={10}>10</option>
+	<option value={25}>25</option>
+	<option value={50}>50</option>
+	<option value={100}>100</option>
 </select>
 </div>
 <ul class="inline-flex items-stretch -space-x-px">
 <li>
-<a class="flex items-center justify-center h-full py-1.5 px-3 ml-0 text-gray-500 bg-white rounded-l-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white" href="#">
-<span class="sr-only">Previous</span>
-<span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span>
-</a>
+	<button 
+		on:click={() => goToPage(currentPage - 1)} 
+		disabled={currentPage === 1}
+		class="flex items-center justify-center h-full py-1.5 px-3 ml-0 text-gray-500 bg-white rounded-l-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+	>
+		<span class="sr-only">Previous</span>
+		<span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span>
+	</button>
 </li>
+{#each pageNumbers as pageNum}
+	{#if pageNum === -1}
+		<li>
+			<span class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400">...</span>
+		</li>
+	{:else}
+		<li>
+			<button
+				on:click={() => goToPage(pageNum)}
+				class="flex items-center justify-center text-sm py-2 px-3 leading-tight {currentPage === pageNum ? 'z-10 text-primary bg-blue-50 border border-primary hover:bg-blue-100 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-700 dark:text-white' : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'}"
+			>
+				{pageNum}
+			</button>
+		</li>
+	{/if}
+{/each}
 <li>
-<a aria-current="page" class="flex items-center justify-center text-sm z-10 py-2 px-3 leading-tight text-primary bg-blue-50 border border-primary hover:bg-blue-100 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-700 dark:text-white" href="#">1</a>
-</li>
-<li>
-<a class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white" href="#">2</a>
-</li>
-<li>
-<a class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white" href="#">3</a>
-</li>
-<li>
-<a class="flex items-center justify-center h-full py-1.5 px-3 leading-tight text-gray-500 bg-white rounded-r-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white" href="#">
-<span class="sr-only">Next</span>
-<span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
-</a>
+	<button
+		on:click={() => goToPage(currentPage + 1)}
+		disabled={currentPage === totalPages}
+		class="flex items-center justify-center h-full py-1.5 px-3 leading-tight text-gray-500 bg-white rounded-r-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+	>
+		<span class="sr-only">Next</span>
+		<span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
+	</button>
 </li>
 </ul>
 </div>
@@ -239,3 +533,81 @@ No se encontraron pedidos
 </main>
 </div>
 </div>
+
+<!-- Edit Status Modal -->
+{#if isEditModalOpen}
+<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeEditModal} on:keydown={(e) => e.key === 'Escape' && closeEditModal()} role="button" tabindex="0">
+	<div class="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6" on:click|stopPropagation>
+		<div class="flex justify-between items-center mb-4">
+			<h3 class="text-xl font-bold text-gray-900 dark:text-white">Editar Estado del Pedido</h3>
+			<button on:click={closeEditModal} class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+				<span class="material-symbols-outlined">close</span>
+			</button>
+		</div>
+		{#if selectedOrder}
+		<div class="mb-4">
+			<p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Pedido: <span class="font-semibold text-gray-900 dark:text-white">{selectedOrder.numero_pedido}</span></p>
+			<p class="text-sm text-gray-600 dark:text-gray-400">Cliente: <span class="font-semibold text-gray-900 dark:text-white">{selectedOrder.nombre_usuario}</span></p>
+		</div>
+		<div class="mb-6">
+			<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nuevo Estado</label>
+			<select bind:value={newStatus} class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50">
+				<option value="Pendiente">Pendiente</option>
+				<option value="Confirmado">Confirmado</option>
+				<option value="Procesando">Procesando</option>
+				<option value="En Proceso">En Proceso</option>
+				<option value="Enviado">Enviado</option>
+				<option value="Entregado">Entregado</option>
+				<option value="Cancelado">Cancelado</option>
+				<option value="Devuelto">Devuelto</option>
+			</select>
+		</div>
+		{/if}
+		<div class="flex justify-end gap-3">
+			<button on:click={closeEditModal} class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
+			<button on:click={saveOrderStatus} class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">Guardar</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Shipping Info Modal -->
+{#if isShippingModalOpen}
+<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeShippingModal} on:keydown={(e) => e.key === 'Escape' && closeShippingModal()} role="button" tabindex="0">
+	<div class="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6" on:click|stopPropagation>
+		<div class="flex justify-between items-center mb-4">
+			<h3 class="text-xl font-bold text-gray-900 dark:text-white">Actualizar Información de Envío</h3>
+			<button on:click={closeShippingModal} class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+				<span class="material-symbols-outlined">close</span>
+			</button>
+		</div>
+		{#if selectedOrder}
+		<div class="mb-4">
+			<p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Pedido: <span class="font-semibold text-gray-900 dark:text-white">{selectedOrder.numero_pedido}</span></p>
+			<p class="text-sm text-gray-600 dark:text-gray-400">Cliente: <span class="font-semibold text-gray-900 dark:text-white">{selectedOrder.nombre_usuario}</span></p>
+		</div>
+		<div class="space-y-4 mb-6">
+			<div>
+				<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Empresa de Envío</label>
+				<select bind:value={shippingCompany} class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50">
+					<option value="">Seleccionar empresa...</option>
+					<option value="Correos">Correos</option>
+					<option value="SEUR">SEUR</option>
+					<option value="MRW">MRW</option>
+					<option value="DHL">DHL</option>
+					<option value="FedEx">FedEx</option>
+				</select>
+			</div>
+			<div>
+				<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de Tracking</label>
+				<input bind:value={trackingNumber} type="text" placeholder="Ej: TRK123456789" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50" />
+			</div>
+		</div>
+		{/if}
+		<div class="flex justify-end gap-3">
+			<button on:click={closeShippingModal} class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
+			<button on:click={saveShippingInfo} class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">Guardar</button>
+		</div>
+	</div>
+</div>
+{/if}

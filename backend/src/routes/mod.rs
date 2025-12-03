@@ -12,14 +12,22 @@ pub mod venta_routes;
 pub mod inventario_routes;
 pub mod producto_routes;
 pub mod descuento_routes;
+pub mod cupon_routes;
+pub mod reembolso_routes;
 
-// Re-exportaciones
-pub use catalogo_routes::catalogo_routes;
+// Re-exportaciones - Catálogo
+pub use catalogo_routes::*;
+
+// Re-exportaciones - Auth & Carrito
 pub use auth_routes::auth_routes;
 pub use carrito_routes::carrito_routes;
 pub use direccion_routes::direccion_routes;
 pub use checkout_routes::checkout_routes;
+
+// Re-exportaciones - Administración
 pub use venta_routes::*;
 pub use inventario_routes::*;
 pub use producto_routes::*;
 pub use descuento_routes::*;
+pub use cupon_routes::*;
+pub use reembolso_routes::*;

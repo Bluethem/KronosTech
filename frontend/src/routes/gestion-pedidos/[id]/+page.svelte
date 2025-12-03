@@ -3,6 +3,7 @@
   
   export let data: PageData;
   let activeTab = 'general';
+  let internalNote = '';
 
   $: order = data.order?.venta;
   $: products = data.order?.productos || [];
@@ -59,6 +60,27 @@
     };
     
     return statusMap[normalizedStatus] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  }
+
+  async function saveNote() {
+    if (!internalNote.trim()) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/ventas/${order.id_venta}/notas`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notas_admin: internalNote })
+      });
+      
+      if (response.ok) {
+        alert('Nota guardada exitosamente');
+        order.notas_admin = internalNote;
+      } else {
+        alert('Error al guardar la nota');
+      }
+    } catch (e) {
+      alert('Error de conexión');
+    }
   }
 </script>
 
@@ -314,108 +336,207 @@
 </div>
 </div>
 {:else if activeTab === 'pagos'}
-<div class="flex flex-col gap-6 pt-6">
-<div class="flex justify-end">
-<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
-<span class="material-symbols-outlined mr-2 text-base">credit_card</span>
-<span class="truncate">Procesar Reembolso</span>
-</button>
+<div class="pt-6">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left Column: Payment Information -->
+    <div class="lg:col-span-2 flex flex-col gap-6">
+      <!-- Payment Details Card -->
+      <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 class="text-lg font-bold tracking-tight dark:text-white">Información de Pago</h3>
+          <button class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
+            <span class="material-symbols-outlined text-base">receipt_long</span>
+            <span>Procesar Reembolso</span>
+          </button>
+        </div>
+        <div class="p-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Número de Pedido</p>
+              <p class="font-mono font-medium text-gray-800 dark:text-white">{order.numero_pedido}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Método de Pago</p>
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">payments</span>
+                <span class="font-medium text-gray-800 dark:text-white">Tarjeta de Crédito</span>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Estado del Pago</p>
+              <div class="flex h-7 w-fit items-center justify-center gap-x-2 rounded-full px-3 {getPaymentStatusBadgeClass(order.estado_pago)}">
+                <p class="text-sm font-medium leading-normal">{order.estado_pago || 'N/A'}</p>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Monto Total</p>
+              <p class="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(order.total)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Fecha de Pago</p>
+              <p class="font-medium text-gray-800 dark:text-white">{formatDate(order.fecha_pedido)}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">ID de Transacción</p>
+              <p class="font-mono text-sm text-gray-800 dark:text-white">TXN-{order.id_venta}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Breakdown Card -->
+      <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold tracking-tight dark:text-white">Desglose de Pago</h3>
+        </div>
+        <div class="p-5">
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600 dark:text-gray-400">Subtotal</span>
+              <span class="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(order.subtotal)}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600 dark:text-gray-400">Descuento Total</span>
+              <span class="font-medium text-red-600 dark:text-red-400">-{formatCurrency(order.descuento_total)}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600 dark:text-gray-400">Costo de Envío</span>
+              <span class="font-medium text-gray-800 dark:text-gray-200">{formatCurrency(order.costo_envio)}</span>
+            </div>
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-3">
+              <div class="flex justify-between items-center">
+                <span class="text-lg font-bold text-gray-900 dark:text-white">Total Pagado</span>
+                <span class="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(order.total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Notes Card -->
+      <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold tracking-tight dark:text-white">Notas del Cliente</h3>
+        </div>
+        <div class="p-5">
+          <p class="text-gray-600 dark:text-gray-300 italic">"Por favor, entregar en horario de tarde si es posible. El timbre del piso 4A a veces no funciona, llamar al móvil si no contesto. Gracias."</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Transaction History -->
+    <div class="lg:col-span-1">
+      <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold tracking-tight dark:text-white">Historial de Transacciones</h3>
+        </div>
+        <div class="p-5">
+          <ol class="relative border-l border-gray-200 dark:border-gray-700">
+            <li class="mb-6 ml-6">
+              <span class="absolute flex items-center justify-center w-8 h-8 bg-green-100 rounded-full -left-4 ring-4 ring-white dark:ring-gray-900 dark:bg-green-900">
+                <span class="material-symbols-outlined text-sm text-green-800 dark:text-green-300">check_circle</span>
+              </span>
+              <h3 class="flex items-center mb-1 text-sm font-semibold text-gray-900 dark:text-white">Pago Completado</h3>
+              <time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">{formatDate(order.fecha_pedido)}</time>
+              <p class="text-sm font-normal text-gray-500 dark:text-gray-400">Pago procesado exitosamente</p>
+              <p class="text-sm font-medium text-gray-900 dark:text-white mt-1">{formatCurrency(order.total)}</p>
+            </li>
+            <li class="ml-6">
+              <span class="absolute flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full -left-4 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+                <span class="material-symbols-outlined text-sm text-blue-800 dark:text-blue-300">shopping_cart</span>
+              </span>
+              <h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Pedido Creado</h3>
+              <time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">{formatDate(order.fecha_pedido)}</time>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-<div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm p-5">
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-center">
-<div class="lg:col-span-2">
-<p class="text-sm text-gray-500 dark:text-gray-400">Número de pedido</p>
-<p class="font-mono text-xs text-gray-800 dark:text-gray-200">{order.numero_pedido}</p>
-</div>
-<div>
-<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Método de pago</p>
-<div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-gray-600 dark:text-gray-300">payments</span>
-<span class="font-medium text-gray-800 dark:text-white">N/A</span>
-</div>
-</div>
-<div>
-<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Estado</p>
-<div class="flex h-6 w-fit items-center justify-center gap-x-2 rounded-full px-3 {getPaymentStatusBadgeClass(order.estado_pago)}">
-<p class="text-xs font-medium leading-normal">{order.estado_pago || 'N/A'}</p>
-</div>
-</div>
-<div>
-<p class="text-sm text-gray-500 dark:text-gray-400">Monto</p>
-<p class="font-medium text-gray-800 dark:text-white">{formatCurrency(order.total)}</p>
-</div>
-<div class="flex flex-col items-start lg:items-end">
-<h3 class="text-lg font-bold tracking-tight dark:text-white">Notas Internas</h3>
-</div>
-<div class="p-5 flex flex-col gap-4">
-<textarea class="block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" placeholder="Agregar nota interna..." rows="4"></textarea>
-<div class="flex justify-end">
-<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">Guardar Nota</button>
-</div>
-</div>
-<div class="p-5 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-4">
-<div class="flex justify-between items-start gap-4">
-<div>
-<p class="text-gray-800 dark:text-gray-200">Cliente llamó para confirmar la dirección de entrega. Todo correcto.</p>
-<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Por: Juan Pérez - 15 Ago, 2023 11:45</p>
-</div>
-<button class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-<span class="material-symbols-outlined text-lg">close</span>
-</button>
-</div>
-<div class="flex justify-between items-start gap-4">
-<div>
-<p class="text-gray-800 dark:text-gray-200">Se aplicó un descuento manual del 10% por ser cliente recurrente.</p>
-<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Por: María López - 15 Ago, 2023 10:30</p>
-</div>
-<button class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-<span class="material-symbols-outlined text-lg">close</span>
-</button>
-</div>
-</div>
-</div>
-<div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
-<div class="p-5 border-b border-gray-200 dark:border-gray-700">
-<h3 class="text-lg font-bold tracking-tight dark:text-white">Notas del Cliente</h3>
-</div>
-<div class="p-5">
-<p class="text-gray-600 dark:text-gray-300 italic">"Por favor, entregar en horario de tarde si es posible. El timbre del piso 4A a veces no funciona, llamar al móvil si no contesto. Gracias."</p>
-</div>
-</div>
-</div>
-<div class="lg:col-span-1">
-<div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
-<div class="p-5 border-b border-gray-200 dark:border-gray-700">
-<h3 class="text-lg font-bold tracking-tight dark:text-white">Historial de Estados</h3>
-</div>
-<div class="p-5">
-<ol class="relative border-l border-gray-200 dark:border-gray-700">
-<li class="mb-8 ml-6">
-<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-8 ring-white dark:ring-gray-900 dark:bg-blue-900">
-<span class="material-symbols-outlined text-sm text-blue-800 dark:text-blue-300">shopping_cart</span>
-</span>
-<h3 class="flex items-center mb-1 text-base font-semibold text-gray-900 dark:text-white">Pedido Creado</h3>
-<time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">Por: Sistema - 15 Ago, 2023 14:24</time>
-<p class="text-sm font-normal text-gray-500 dark:text-gray-400">El pedido fue recibido y está pendiente de procesamiento.</p>
-</li>
-<li class="mb-8 ml-6">
-<span class="absolute flex items-center justify-center w-6 h-6 bg-green-100 rounded-full -left-3 ring-8 ring-white dark:ring-gray-900 dark:bg-green-900">
-<span class="material-symbols-outlined text-sm text-green-800 dark:text-green-300">credit_card</span>
-</span>
-<h3 class="mb-1 text-base font-semibold text-gray-900 dark:text-white">Pago Completado</h3>
-<time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">Por: Sistema - 15 Ago, 2023 14:25</time>
-</li>
-<li class="ml-6">
-<span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-8 ring-white dark:ring-gray-900 dark:bg-blue-900">
-<span class="material-symbols-outlined text-sm text-blue-800 dark:text-blue-300">inventory_2</span>
-</span>
-<h3 class="mb-1 text-base font-semibold text-gray-900 dark:text-white">Estado cambiado a "Procesando"</h3>
-<time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">Por: María López - 15 Ago, 2023 14:30</time>
-</li>
-</ol>
-</div>
-</div>
-</div>
+{:else if activeTab === 'historial'}
+<!-- Tab Content: Historial y Notas -->
+<div class="pt-6">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left Column: Notes Section -->
+    <div class="lg:col-span-2 flex flex-col gap-6">
+      <!-- Internal Notes Card -->
+      <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold tracking-tight dark:text-white">Notas Internas</h3>
+        </div>
+        <div class="p-5">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Agregar nueva nota</label>
+              <textarea 
+                bind:value={internalNote}
+                class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm" 
+                placeholder="Escribe una nota interna sobre este pedido..." 
+                rows="3"
+              ></textarea>
+              <div class="flex justify-end mt-3">
+                <button on:click={saveNote} class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
+                  <span class="material-symbols-outlined text-base">save</span>
+                  <span>Guardar Nota</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Saved Notes Display -->
+            {#if order.notas_admin}
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+                <p class="text-gray-800 dark:text-gray-200">{order.notas_admin}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Última actualización: {formatDate(order.fecha_actualizacion)}</p>
+              </div>
+            </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Status History Timeline -->
+    <div class="lg:col-span-1">
+      <div class="bg-white dark:bg-background-dark dark:border dark:border-gray-700/50 rounded-xl shadow-sm">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold tracking-tight dark:text-white">Historial de Estados</h3>
+        </div>
+        <div class="p-5">
+          <ol class="relative border-l border-gray-200 dark:border-gray-700">
+            <li class="mb-8 ml-6">
+              <span class="absolute flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full -left-4 ring-4 ring-white dark:ring-gray-900 dark:bg-blue-900">
+                <span class="material-symbols-outlined text-sm text-blue-800 dark:text-blue-300">shopping_cart</span>
+              </span>
+              <h3 class="flex items-center mb-1 text-sm font-semibold text-gray-900 dark:text-white">
+                Pedido Creado
+                <span class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300 ml-3">Actual</span>
+              </h3>
+              <time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">Por: Sistema - {formatDate(order.fecha_pedido)}</time>
+              <p class="text-sm font-normal text-gray-500 dark:text-gray-400">El pedido fue recibido y está pendiente de procesamiento.</p>
+            </li>
+            <li class="mb-8 ml-6">
+              <span class="absolute flex items-center justify-center w-8 h-8 bg-green-100 rounded-full -left-4 ring-4 ring-white dark:ring-gray-900 dark:bg-green-900">
+                <span class="material-symbols-outlined text-sm text-green-800 dark:text-green-300">credit_card</span>
+              </span>
+              <h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Pago Completado</h3>
+              <time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">Por: Sistema - {formatDate(order.fecha_pedido)}</time>
+              <p class="text-sm font-normal text-gray-500 dark:text-gray-400">El pago fue procesado exitosamente.</p>
+            </li>
+            <li class="ml-6">
+              <span class="absolute flex items-center justify-center w-8 h-8 bg-purple-100 rounded-full -left-4 ring-4 ring-white dark:ring-gray-900 dark:bg-purple-900">
+                <span class="material-symbols-outlined text-sm text-purple-800 dark:text-purple-300">inventory_2</span>
+              </span>
+              <h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Estado cambiado a "Procesando"</h3>
+              <time class="block mb-2 text-xs font-normal leading-none text-gray-400 dark:text-gray-500">Por: María López - {formatDate(order.fecha_actualizacion)}</time>
+              <p class="text-sm font-normal text-gray-500 dark:text-gray-400">El pedido está siendo preparado para envío.</p>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {/if}
 </div>

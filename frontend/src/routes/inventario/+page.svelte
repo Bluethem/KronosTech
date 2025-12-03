@@ -57,8 +57,17 @@
   let adjustSubmitting = $state(false);
   let adjustSuccessMessage = $state('');
   
+  // PDF Generation
+  let jsPDF: any;
+  let autoTable: any;
+  
   onMount(async () => {
     await fetchData();
+    // Dynamically import jsPDF and autoTable
+    const jsPDFModule = await import('jspdf');
+    jsPDF = jsPDFModule.default;
+    const autoTableModule = await import('jspdf-autotable');
+    autoTable = autoTableModule.default;
   });
   
   async function fetchData() {
@@ -354,6 +363,149 @@
       alert('Error al eliminar producto del inventario');
     }
   }
+  
+
+  
+  function generateInventoryReport() {
+    if (!jsPDF || !autoTable) {
+      alert('Cargando librería PDF...');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Header with gradient background
+    doc.setFillColor(59, 130, 246); // Primary blue color
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    // Company name
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KronosTech', 15, 20);
+    
+    // Report title
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Reporte de Inventario', 15, 30);
+    
+    // Date
+    doc.setFontSize(10);
+    const currentDate = new Date().toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    doc.text(`Generado: ${currentDate}`, pageWidth - 15, 30, { align: 'right' });
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    
+    let yPosition = 50;
+    
+    // Summary box
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 40, 3, 3, 'F');
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen del Inventario', 20, yPosition + 8);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Total de Productos: ${stats.total_productos}`, 20, yPosition + 16);
+    doc.text(`Valor Total: ${formatCurrency(stats.valor_total)}`, 20, yPosition + 23);
+    doc.text(`Stock Bajo: ${stats.stock_bajo}`, 20, yPosition + 30);
+    doc.text(`Sin Stock: ${stats.sin_stock}`, 20, yPosition + 37);
+    
+    doc.text(`Productos con Stock OK: ${stats.total_productos - stats.stock_bajo - stats.sin_stock}`, 100, yPosition + 16);
+    doc.text(`% Stock Bajo: ${((stats.stock_bajo / stats.total_productos) * 100).toFixed(1)}%`, 100, yPosition + 23);
+    doc.text(`% Sin Stock: ${((stats.sin_stock / stats.total_productos) * 100).toFixed(1)}%`, 100, yPosition + 30);
+    
+    yPosition += 50;
+    
+    // Table title
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detalle de Productos', 15, yPosition);
+    
+    yPosition += 5;
+    
+    // Prepare table data
+    const tableData = inventarioItems.map(item => [
+      item.sku || 'N/A',
+      item.nombre || 'N/A',
+      item.cantidad_disponible?.toString() || '0',
+      item.cantidad_minima?.toString() || '0',
+      item.stock_estado || 'N/A',
+      item.ubicacion_fisica || 'Sin ubicación',
+      formatCurrency(item.precio_venta || 0)
+    ]);
+    
+    // Generate table
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['SKU', 'Producto', 'Stock', 'Mín', 'Estado', 'Ubicación', 'Precio']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [50, 50, 50]
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 15, halign: 'center' },
+        3: { cellWidth: 15, halign: 'center' },
+        4: { cellWidth: 20, halign: 'center' },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 25, halign: 'right' }
+      },
+      margin: { left: 15, right: 15 },
+      didDrawCell: function(data) {
+        // Color code stock status
+        if (data.section === 'body' && data.column.index === 4) {
+          const stockEstado = data.cell.raw;
+          if (stockEstado === 'agotado') {
+            doc.setFillColor(254, 202, 202);
+          } else if (stockEstado === 'bajo') {
+            doc.setFillColor(254, 243, 199);
+          } else if (stockEstado === 'ok') {
+            doc.setFillColor(209, 250, 229);
+          }
+        }
+      },
+      didDrawPage: function(data) {
+        // Footer
+        const footerY = pageHeight - 15;
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Página ${doc.internal.getCurrentPageInfo().pageNumber}`,
+          pageWidth / 2,
+          footerY,
+          { align: 'center' }
+        );
+        doc.text('KronosTech © 2024', 15, footerY);
+      }
+    });
+    
+    // Save the PDF
+    doc.save(`Reporte_Inventario_${new Date().toISOString().split('T')[0]}.pdf`);
+  }
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark font-display">
@@ -399,7 +551,7 @@
 <option value="Marca B">Marca B</option>
 </select>
 <button on:click={clearFilters} class="h-10 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg w-full sm:w-auto">Limpiar</button>
-<button class="flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg w-full sm:w-auto">
+<button on:click={generateInventoryReport} class="flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg w-full sm:w-auto">
 <span class="material-symbols-outlined text-base">download</span>
 <span>Generar Reporte</span>
 </button>

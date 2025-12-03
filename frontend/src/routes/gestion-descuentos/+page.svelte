@@ -117,6 +117,31 @@
       fetchDescuentos();
     }, 300);
   }
+  
+  async function deleteDescuento(descuento) {
+    if (!confirm(`¿Estás seguro de eliminar el descuento "${descuento.nombre}"?`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:3000/api/descuentos/${descuento.id_descuento}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok || response.status === 204) {
+        // Refresh the list
+        await Promise.all([
+          fetchDescuentos(),
+          fetchStats()
+        ]);
+      } else {
+        alert('Error al eliminar el descuento');
+      }
+    } catch (e) {
+      console.error('Error deleting descuento:', e);
+      alert('Error de conexión al eliminar el descuento');
+    }
+  }
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root bg-background-light dark:bg-background-dark font-display text-[#111418] dark:text-gray-200">
@@ -270,8 +295,8 @@
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex items-center justify-end gap-4">
-                          <button class="text-primary hover:text-primary/80" on:click={() => openSidebar(descuento)}>Edit</button>
-                          <button class="text-red-500 hover:text-red-700">
+                          <a href="/gestion-descuentos/editar/{descuento.id_descuento}" class="text-primary hover:text-primary/80">Edit</a>
+                          <button class="text-red-500 hover:text-red-700" on:click={() => deleteDescuento(descuento)}>
                             <span class="material-symbols-outlined text-xl">delete</span>
                           </button>
                         </div>

@@ -23,7 +23,9 @@ use routes::{
     venta_routes,
     inventario_routes,
     producto_routes,
-    descuento_routes
+    descuento_routes,
+    cupon_routes,
+    reembolso_routes
 };
 use tower_http::cors::CorsLayer;
 
@@ -64,7 +66,9 @@ async fn main() {
         .nest("/api", venta_routes(pool.clone()))
         .nest("/api", inventario_routes(pool.clone()))
         .nest("/api", producto_routes(pool.clone()))
-        .nest("/api", descuento_routes(pool))
+        .nest("/api", descuento_routes(pool.clone()))
+        .nest("/api", cupon_routes(pool.clone()))
+        .nest("/api", reembolso_routes(pool))
         .layer(cors);
 
     let addr = settings.server_address();
@@ -101,13 +105,31 @@ async fn main() {
     println!("   GET    /api/pedidos");
     println!("   GET    /api/pedidos/{{id}}");
     println!("   === Administración - Ventas ===");
-    println!("   GET  /api/ventas");
+    println!("   GET    /api/ventas");
+    println!("   GET    /api/ventas/{{id}}");
+    println!("   PATCH  /api/ventas/{{id}}/estado");
     println!("   === Administración - Inventario ===");
-    println!("   (Endpoints de inventario)");
+    println!("   GET    /api/inventario");
+    println!("   POST   /api/inventario/movimiento");
+    println!("   GET    /api/inventario/movimientos");
     println!("   === Administración - Productos ===");
-    println!("   (Endpoints de gestión de productos)");
+    println!("   POST   /api/productos");
+    println!("   PUT    /api/productos/{{id}}");
+    println!("   DELETE /api/productos/{{id}}");
     println!("   === Administración - Descuentos ===");
-    println!("   (Endpoints de descuentos)");
+    println!("   GET    /api/descuentos");
+    println!("   POST   /api/descuentos");
+    println!("   PUT    /api/descuentos/{{id}}");
+    println!("   DELETE /api/descuentos/{{id}}");
+    println!("   === Administración - Cupones ===");
+    println!("   GET    /api/cupones");
+    println!("   POST   /api/cupones");
+    println!("   PUT    /api/cupones/{{id}}");
+    println!("   DELETE /api/cupones/{{id}}");
+    println!("   === Administración - Reembolsos ===");
+    println!("   GET    /api/reembolsos");
+    println!("   POST   /api/reembolsos");
+    println!("   PATCH  /api/reembolsos/{{id}}/estado");
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)

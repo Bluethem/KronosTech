@@ -40,6 +40,28 @@ pub struct DescuentoQuery {
     pub estado: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateDescuentoRequest {
+    pub nombre: String,
+    pub descripcion: Option<String>,
+    pub tipo_descuento: String,
+    pub valor: Decimal,
+    pub aplica_a: String,
+    pub id_referencia: Option<i32>,
+    pub compra_minima: Option<Decimal>,
+    pub cantidad_minima: Option<i32>,
+    pub usos_maximos: Option<i32>,
+    pub fecha_inicio: String,
+    pub fecha_fin: String,
+    pub activo: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct ProductoDropdown {
+    pub id_producto_detalle: i32,
+    pub nombre: String,
+}
+
 pub async fn get_descuentos(
     State(pool): State<PgPool>,
     Query(query): Query<DescuentoQuery>,
@@ -137,7 +159,27 @@ pub async fn get_descuento_detalle(
     Path(id): Path<i32>,
 ) -> Result<Json<Descuento>, StatusCode> {
     match sqlx::query_as::<_, Descuento>(
-        "SELECT * FROM descuento WHERE id_descuento = $1"
+        r#"
+        SELECT 
+            id_descuento,
+            nombre,
+            descripcion,
+            tipo_descuento::TEXT as tipo_descuento,
+            valor,
+            aplica_a::TEXT as aplica_a,
+            id_referencia,
+            compra_minima,
+            cantidad_minima,
+            usos_maximos,
+            usos_actuales,
+            fecha_inicio,
+            fecha_fin,
+            activo,
+            fecha_creacion,
+            fecha_actualizacion
+        FROM descuento 
+        WHERE id_descuento = $1
+        "#
     )
     .bind(id)
     .fetch_one(&pool)
@@ -147,6 +189,249 @@ pub async fn get_descuento_detalle(
         Err(e) => {
             eprintln!("Error fetching descuento detalle: {:?}", e);
             Err(StatusCode::NOT_FOUND)
+        }
+    }
+}
+
+pub async fn create_descuento(
+    State(pool): State<PgPool>,
+    Json(payload): Json<CreateDescuentoRequest>,
+) -> Result<Json<Descuento>, StatusCode> {
+    // Validate required fields
+    if payload.nombre.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.valor <= Decimal::ZERO {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Validate tipo_descuento
+    if !["porcentaje", "monto_fijo", "envio_gratis"].contains(&payload.tipo_descuento.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Validate aplica_a
+    if !["global", "producto", "categoria", "marca", "familia"].contains(&payload.aplica_a.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // If aplica_a is producto, id_referencia is required
+    if payload.aplica_a == "producto" && payload.id_referencia.is_none() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Parse dates from string
+    let fecha_inicio = NaiveDateTime::parse_from_str(&payload.fecha_inicio, "%Y-%m-%d %H:%M:%S")
+        .map_err(|e| {
+            eprintln!("Error parsing fecha_inicio: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+    
+    let fecha_fin = NaiveDateTime::parse_from_str(&payload.fecha_fin, "%Y-%m-%d %H:%M:%S")
+        .map_err(|e| {
+            eprintln!("Error parsing fecha_fin: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    // Validate dates
+    if fecha_fin <= fecha_inicio {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    match sqlx::query_as::<_, Descuento>(
+        r#"
+        INSERT INTO descuento (
+            nombre, descripcion, tipo_descuento, valor, aplica_a, id_referencia,
+            compra_minima, cantidad_minima, usos_maximos, usos_actuales,
+            fecha_inicio, fecha_fin, activo
+        )
+        VALUES ($1, $2, CAST($3 AS tipo_descuento), $4, CAST($5 AS aplica_descuento), $6, $7, $8, $9, 0, $10, $11, $12)
+        RETURNING 
+            id_descuento,
+            nombre,
+            descripcion,
+            tipo_descuento::TEXT as tipo_descuento,
+            valor,
+            aplica_a::TEXT as aplica_a,
+            id_referencia,
+            compra_minima,
+            cantidad_minima,
+            usos_maximos,
+            usos_actuales,
+            fecha_inicio,
+            fecha_fin,
+            activo,
+            fecha_creacion,
+            fecha_actualizacion
+        "#
+    )
+    .bind(&payload.nombre)
+    .bind(&payload.descripcion)
+    .bind(&payload.tipo_descuento)
+    .bind(&payload.valor)
+    .bind(&payload.aplica_a)
+    .bind(&payload.id_referencia)
+    .bind(&payload.compra_minima)
+    .bind(&payload.cantidad_minima)
+    .bind(&payload.usos_maximos)
+    .bind(&fecha_inicio)
+    .bind(&fecha_fin)
+    .bind(payload.activo.unwrap_or(true))
+    .fetch_one(&pool)
+    .await
+    {
+        Ok(descuento) => Ok(Json(descuento)),
+        Err(e) => {
+            eprintln!("Error creating descuento: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn get_productos_dropdown(
+    State(pool): State<PgPool>,
+) -> Result<Json<Vec<ProductoDropdown>>, StatusCode> {
+    match sqlx::query_as::<_, ProductoDropdown>(
+        r#"
+        SELECT id_producto_detalle, nombre
+        FROM producto_detalle
+        ORDER BY nombre ASC
+        "#
+    )
+    .fetch_all(&pool)
+    .await
+    {
+        Ok(productos) => Ok(Json(productos)),
+        Err(e) => {
+            eprintln!("Error fetching productos dropdown: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn update_descuento(
+    State(pool): State<PgPool>,
+    Path(id): Path<i32>,
+    Json(payload): Json<CreateDescuentoRequest>,
+) -> Result<Json<Descuento>, StatusCode> {
+    // Validate required fields (same as create)
+    if payload.nombre.trim().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.valor <= Decimal::ZERO {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if !["porcentaje", "monto_fijo", "envio_gratis"].contains(&payload.tipo_descuento.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if !["global", "producto", "categoria", "marca", "familia"].contains(&payload.aplica_a.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.aplica_a == "producto" && payload.id_referencia.is_none() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Parse dates
+    let fecha_inicio = NaiveDateTime::parse_from_str(&payload.fecha_inicio, "%Y-%m-%d %H:%M:%S")
+        .map_err(|e| {
+            eprintln!("Error parsing fecha_inicio: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+    
+    let fecha_fin = NaiveDateTime::parse_from_str(&payload.fecha_fin, "%Y-%m-%d %H:%M:%S")
+        .map_err(|e| {
+            eprintln!("Error parsing fecha_fin: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    if fecha_fin <= fecha_inicio {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    match sqlx::query_as::<_, Descuento>(
+        r#"
+        UPDATE descuento SET
+            nombre = $1,
+            descripcion = $2,
+            tipo_descuento = CAST($3 AS tipo_descuento),
+            valor = $4,
+            aplica_a = CAST($5 AS aplica_descuento),
+            id_referencia = $6,
+            compra_minima = $7,
+            cantidad_minima = $8,
+            usos_maximos = $9,
+            fecha_inicio = $10,
+            fecha_fin = $11,
+            activo = $12,
+            fecha_actualizacion = CURRENT_TIMESTAMP
+        WHERE id_descuento = $13
+        RETURNING 
+            id_descuento,
+            nombre,
+            descripcion,
+            tipo_descuento::TEXT as tipo_descuento,
+            valor,
+            aplica_a::TEXT as aplica_a,
+            id_referencia,
+            compra_minima,
+            cantidad_minima,
+            usos_maximos,
+            usos_actuales,
+            fecha_inicio,
+            fecha_fin,
+            activo,
+            fecha_creacion,
+            fecha_actualizacion
+        "#
+    )
+    .bind(&payload.nombre)
+    .bind(&payload.descripcion)
+    .bind(&payload.tipo_descuento)
+    .bind(&payload.valor)
+    .bind(&payload.aplica_a)
+    .bind(&payload.id_referencia)
+    .bind(&payload.compra_minima)
+    .bind(&payload.cantidad_minima)
+    .bind(&payload.usos_maximos)
+    .bind(&fecha_inicio)
+    .bind(&fecha_fin)
+    .bind(payload.activo.unwrap_or(true))
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    {
+        Ok(descuento) => Ok(Json(descuento)),
+        Err(e) => {
+            eprintln!("Error updating descuento: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+pub async fn delete_descuento(
+    State(pool): State<PgPool>,
+    Path(id): Path<i32>,
+) -> Result<StatusCode, StatusCode> {
+    match sqlx::query("DELETE FROM descuento WHERE id_descuento = $1")
+        .bind(id)
+        .execute(&pool)
+        .await
+    {
+        Ok(result) => {
+            if result.rows_affected() > 0 {
+                Ok(StatusCode::NO_CONTENT)
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
+        }
+        Err(e) => {
+            eprintln!("Error deleting descuento: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }
