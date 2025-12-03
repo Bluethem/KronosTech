@@ -30,10 +30,16 @@
   let errorMessage = '';
   let successMessage = '';
   
+  // Assigned Users State
+  let assignedUsuarios = [];
+  let loadingAssignedUsers = false;
+  let unassigningUserId = null;
+  
   onMount(async () => {
     await Promise.all([
       fetchProductos(),
-      loadCuponData()
+      loadCuponData(),
+      fetchAssignedUsers()
     ]);
   });
   
@@ -215,6 +221,51 @@
       errorMessage = 'Error de conexión: ' + e.message;
     } finally {
       loading = false;
+    }
+  }
+  
+  async function fetchAssignedUsers() {
+    loadingAssignedUsers = true;
+    try {
+      const response = await fetch(`http://localhost:3000/api/cupones/${cuponId}/usuarios`);
+      if (response.ok) {
+        assignedUsuarios = await response.json();
+      } else {
+        assignedUsuarios = [];
+      }
+    } catch (e) {
+      console.error('Error fetching assigned users:', e);
+      assignedUsuarios = [];
+    } finally {
+      loadingAssignedUsers = false;
+    }
+  }
+  
+  async function unassignUser(id_usuario) {
+    if (!confirm('¿Estás seguro de desasignar este cupón del usuario?')) {
+      return;
+    }
+    
+    unassigningUserId = id_usuario;
+    try {
+      const response = await fetch(`http://localhost:3000/api/cupones/${cuponId}/usuarios/${id_usuario}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok || response.status === 204) {
+        // Remove from local array
+        assignedUsuarios = assignedUsuarios.filter(u => u.id_usuario !== id_usuario);
+        successMessage = 'Usuario desasignado exitosamente';
+        setTimeout(() => successMessage = '', 3000);
+      } else {
+        errorMessage = 'Error al desasignar usuario';
+        setTimeout(() => errorMessage = '', 3000);
+      }
+    } catch (e) {
+      errorMessage = 'Error de conexión: ' + e.message;
+      setTimeout(() => errorMessage = '', 3000);
+    } finally {
+      unassigningUserId = null;
     }
   }
   
@@ -486,6 +537,56 @@
                   <span class="text-sm text-slate-700 dark:text-slate-300">Cupón activo</span>
                 </label>
               </div>
+            </div>
+
+            <!-- Assigned Users Section -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+              <h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Usuarios Asignados</h2>
+              
+              {#if loadingAssignedUsers}
+                <div class="flex items-center justify-center py-8">
+                  <span class="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
+                </div>
+              {:else if assignedUsuarios.length > 0}
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                  {#each assignedUsuarios as usuario}
+                    <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                      <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary text-xl">person</span>
+                        <div>
+                          <p class="text-sm font-medium text-slate-900 dark:text-white">{usuario.nombre}</p>
+                          <p class="text-xs text-slate-500 dark:text-slate-400">{usuario.email}</p>
+                        </div>
+                      </div>
+                      <button
+                        on:click={() => unassignUser(usuario.id_usuario)}
+                        disabled={unassigningUserId === usuario.id_usuario}
+                        class="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Desasignar cupón"
+                      >
+                        {#if unassigningUserId === usuario.id_usuario}
+                          <span class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                        {:else}
+                          <span class="material-symbols-outlined text-base">person_remove</span>
+                        {/if}
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                  Total: {assignedUsuarios.length} usuario{assignedUsuarios.length !== 1 ? 's' : ''}
+                </p>
+              {:else}
+                <div class="text-center py-8">
+                  <span class="material-symbols-outlined text-slate-300 dark:text-slate-700 text-5xl mb-2">group_off</span>
+                  <p class="text-sm text-slate-500 dark:text-slate-400">
+                    No hay usuarios asignados a este cupón
+                  </p>
+                  <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    Usa la asignación masiva desde la lista de cupones para asignar usuarios
+                  </p>
+                </div>
+              {/if}
             </div>
 
             <!-- Actions -->

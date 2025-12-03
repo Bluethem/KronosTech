@@ -31,6 +31,10 @@
   let assignmentResult = null;
   let isAssigning = false;
   
+  // Assigned Users State
+  let assignedUsuarios = [];
+  let loadingAssignedUsers = false;
+  
   // Search and filters
   let searchQuery = '';
   let tipoFilter = '';
@@ -161,13 +165,15 @@
     isCreateSidebarOpen = false;
   }
 
-  function openDetailsSidebar(cupon) {
+  async function openDetailsSidebar(cupon) {
     selectedCupon = cupon;
     isDetailsSidebarOpen = true;
+    await fetchAssignedUsers(cupon.id_cupon);
   }
 
   function closeDetailsSidebar() {
     isDetailsSidebarOpen = false;
+    assignedUsuarios = [];
     selectedCupon = null;
   }
 
@@ -252,6 +258,23 @@
       alert('Error de conexión');
     } finally {
       isAssigning = false;
+    }
+  }
+  
+  async function fetchAssignedUsers(id_cupon) {
+    loadingAssignedUsers = true;
+    try {
+      const response = await fetch(`http://localhost:3000/api/cupones/${id_cupon}/usuarios`);
+      if (response.ok) {
+        assignedUsuarios = await response.json();
+      } else {
+        assignedUsuarios = [];
+      }
+    } catch (e) {
+      console.error('Error fetching assigned users:', e);
+      assignedUsuarios = [];
+    } finally {
+      loadingAssignedUsers = false;
     }
   }
   
@@ -1149,210 +1172,7 @@
   </div>
 </div>
 
-<!-- Mass Assignment Modal -->
-{#if isMassAssignModalOpen}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity" on:click={closeMassAssignModal}>
-    <div class="relative w-full max-w-4xl rounded-xl bg-white dark:bg-[#1C2A36] shadow-2xl" on:click|stopPropagation>
-      <div class="flex h-full grow flex-col">
-        <div class="px-10 py-8">
-          <div class="flex flex-col flex-1">
-            <div class="flex flex-wrap justify-between gap-3 pb-6">
-              <p class="text-[#111418] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] min-w-72">Asignación Masiva de Cupones</p>
-            </div>
-            <div class="pb-3">
-              <div class="flex border-b border-[#dbe0e6] dark:border-[#334155] gap-8">
-                <button class="flex flex-col items-center justify-center border-b-[3px] {massAssignStep === 1 ? 'border-b-primary' : 'border-b-transparent'} pb-[13px] pt-4" on:click={() => massAssignStep = 1}>
-                  <p class="{massAssignStep === 1 ? 'text-primary' : 'text-[#617589] dark:text-[#94a3b8]'} text-sm font-bold leading-normal tracking-[0.015em]">1. Selección de Usuarios</p>
-                </button>
-                <button class="flex flex-col items-center justify-center border-b-[3px] {massAssignStep === 2 ? 'border-b-primary' : 'border-b-transparent'} pb-[13px] pt-4" disabled={massAssignStep < 2}>
-                  <p class="{massAssignStep === 2 ? 'text-primary' : 'text-[#617589] dark:text-[#94a3b8]'} text-sm font-bold leading-normal tracking-[0.015em]">2. Confirmación</p>
-                </button>
-                <button class="flex flex-col items-center justify-center border-b-[3px] {massAssignStep === 3 ? 'border-b-primary' : 'border-b-transparent'} pb-[13px] pt-4" disabled={massAssignStep < 3}>
-                  <p class="{massAssignStep === 3 ? 'text-primary' : 'text-[#617589] dark:text-[#94a3b8]'} text-sm font-bold leading-normal tracking-[0.015em]">3. Resultado</p>
-                </button>
-              </div>
-            </div>
-            
-            {#if massAssignStep === 1}
-            <div class="flex flex-col py-6 gap-3">
-              <details class="flex flex-col rounded-lg border border-[#dbe0e6] dark:border-[#334155] bg-white dark:bg-[#101922] px-[15px] py-[7px] group" open="">
-                <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
-                  <p class="text-[#111418] dark:text-white text-sm font-medium leading-normal">Buscar y seleccionar usuarios específicos</p>
-                  <div class="text-[#111418] dark:text-white group-open:rotate-180 transition-transform">
-                    <span class="material-symbols-outlined">expand_more</span>
-                  </div>
-                </summary>
-                <div class="pb-2">
-                  <div class="py-3">
-                    <label class="flex flex-col min-w-40 h-12 w-full">
-                      <div class="flex w-full flex-1 items-stretch rounded-lg h-full">
-                        <div class="text-[#617589] dark:text-[#94a3b8] flex border-none bg-[#f0f2f4] dark:bg-[#1C2A36] items-center justify-center pl-4 rounded-l-lg border-r-0">
-                          <span class="material-symbols-outlined">search</span>
-                        </div>
-                        <input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-[#f0f2f4] dark:bg-[#1C2A36] h-full placeholder:text-[#617589] dark:placeholder:text-[#94a3b8] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Buscar por nombre o email..." value=""/>
-                      </div>
-                    </label>
-                  </div>
-                  <div class="px-4 border-t border-[#dbe0e6] dark:border-[#334155] pt-2">
-                    <label class="flex gap-x-3 py-3 flex-row items-center">
-                      <input checked="" class="h-5 w-5 rounded border-[#dbe0e6] dark:border-[#475569] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-2 focus:ring-offset-0 focus:ring-primary/50 focus:ring-offset-white dark:focus:ring-offset-[#101922] focus:outline-none" type="checkbox"/>
-                      <p class="text-[#111418] dark:text-white text-base font-normal leading-normal">Alejandro Vargas (a.vargas@email.com)</p>
-                    </label>
-                    <label class="flex gap-x-3 py-3 flex-row items-center">
-                      <input class="h-5 w-5 rounded border-[#dbe0e6] dark:border-[#475569] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-2 focus:ring-offset-0 focus:ring-primary/50 focus:ring-offset-white dark:focus:ring-offset-[#101922] focus:outline-none" type="checkbox"/>
-                      <p class="text-[#111418] dark:text-white text-base font-normal leading-normal">Beatriz Navarro (beatriz.n@email.com)</p>
-                    </label>
-                    <label class="flex gap-x-3 py-3 flex-row items-center">
-                      <input checked="" class="h-5 w-5 rounded border-[#dbe0e6] dark:border-[#475569] border-2 bg-transparent text-primary checked:bg-primary checked:border-primary checked:bg-[image:--checkbox-tick-svg] focus:ring-2 focus:ring-offset-0 focus:ring-primary/50 focus:ring-offset-white dark:focus:ring-offset-[#101922] focus:outline-none" type="checkbox"/>
-                      <p class="text-[#111418] dark:text-white text-base font-normal leading-normal">Carlos Jimenez (cjimenez@email.com)</p>
-                    </label>
-                  </div>
-                </div>
-              </details>
-              <details class="flex flex-col rounded-lg border border-[#dbe0e6] dark:border-[#334155] bg-white dark:bg-[#101922] px-[15px] py-[7px] group">
-                <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
-                  <p class="text-[#111418] dark:text-white text-sm font-medium leading-normal">Importar lista de emails</p>
-                  <div class="text-[#111418] dark:text-white group-open:rotate-180 transition-transform">
-                    <span class="material-symbols-outlined">expand_more</span>
-                  </div>
-                </summary>
-                <div class="p-4">
-                  <textarea class="form-textarea w-full rounded-lg border-[#dbe0e6] dark:border-[#334155] bg-[#f0f2f4] dark:bg-[#1C2A36] text-[#111418] dark:text-white placeholder:text-[#617589] dark:placeholder:text-[#94a3b8] focus:border-primary focus:ring-primary/50" placeholder="Pega una lista de emails, uno por línea..." rows="6"></textarea>
-                </div>
-              </details>
-              <details class="flex flex-col rounded-lg border border-[#dbe0e6] dark:border-[#334155] bg-white dark:bg-[#101922] px-[15px] py-[7px] group">
-                <summary class="flex cursor-pointer items-center justify-between gap-6 py-2">
-                  <p class="text-[#111418] dark:text-white text-sm font-medium leading-normal">Asignar a un segmento</p>
-                  <div class="text-[#111418] dark:text-white group-open:rotate-180 transition-transform">
-                    <span class="material-symbols-outlined">expand_more</span>
-                  </div>
-                </summary>
-                <div class="p-4 space-y-3">
-                  <label class="flex items-center gap-x-3">
-                    <input class="form-radio h-5 w-5 text-primary border-[#dbe0e6] dark:border-[#475569] dark:bg-[#1C2A36] focus:ring-primary/50" name="segment" type="radio"/>
-                    <span class="text-[#111418] dark:text-white">Todos los usuarios</span>
-                  </label>
-                  <label class="flex items-center gap-x-3">
-                    <input class="form-radio h-5 w-5 text-primary border-[#dbe0e6] dark:border-[#475569] dark:bg-[#1C2A36] focus:ring-primary/50" name="segment" type="radio"/>
-                    <span class="text-[#111418] dark:text-white">Usuarios sin compras</span>
-                  </label>
-                  <label class="flex items-center gap-x-3">
-                    <input class="form-radio h-5 w-5 text-primary border-[#dbe0e6] dark:border-[#475569] dark:bg-[#1C2A36] focus:ring-primary/50" name="segment" type="radio"/>
-                    <span class="text-[#111418] dark:text-white">Usuarios activos</span>
-                  </label>
-                </div>
-              </details>
-            </div>
-            <div class="flex justify-end gap-4 pt-6 border-t border-[#dbe0e6] dark:border-[#334155]">
-              <button class="px-6 py-3 rounded-lg text-sm font-bold bg-gray-100 dark:bg-[#334155] text-[#111418] dark:text-white hover:bg-gray-200 dark:hover:bg-[#475569] transition-colors" on:click={closeMassAssignModal}>Cancelar</button>
-              <button class="px-6 py-3 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2" on:click={() => massAssignStep = 2}>
-                <span>Siguiente</span>
-                <span class="material-symbols-outlined text-base">arrow_forward</span>
-              </button>
-            </div>
-            {:else if massAssignStep === 2}
-            <div class="py-6">
-              <div class="space-y-6">
-                <div class="rounded-lg border border-[#dbe0e6] dark:border-[#334155] p-6 bg-white dark:bg-[#101922]">
-                  <h2 class="text-lg font-bold text-[#111418] dark:text-white mb-4">Resumen de la Asignación</h2>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                    <div>
-                      <p class="text-[#617589] dark:text-[#94a3b8] font-medium">Cupón a asignar</p>
-                      <p class="text-[#111418] dark:text-white font-semibold">GAMERDAY25 (25% Descuento)</p>
-                    </div>
-                    <div>
-                      <p class="text-[#617589] dark:text-[#94a3b8] font-medium">Usuarios seleccionados</p>
-                      <p class="text-[#111418] dark:text-white font-semibold">2 usuarios</p>
-                    </div>
-                    <div>
-                      <p class="text-[#617589] dark:text-[#94a3b8] font-medium">Método de selección</p>
-                      <p class="text-[#111418] dark:text-white font-semibold">Selección manual</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="rounded-lg border border-[#dbe0e6] dark:border-[#334155] bg-white dark:bg-[#101922]">
-                  <div class="p-6">
-                    <h3 class="text-lg font-bold text-[#111418] dark:text-white">Usuarios que recibirán el cupón</h3>
-                  </div>
-                  <div class="border-t border-[#dbe0e6] dark:border-[#334155]">
-                    <ul class="divide-y divide-[#dbe0e6] dark:divide-[#334155]">
-                      <li class="px-6 py-3 flex items-center gap-3">
-                        <span class="material-symbols-outlined text-xl text-[#617589] dark:text-[#94a3b8]">person</span>
-                        <span class="text-[#111418] dark:text-white">Alejandro Vargas (a.vargas@email.com)</span>
-                      </li>
-                      <li class="px-6 py-3 flex items-center gap-3">
-                        <span class="material-symbols-outlined text-xl text-[#617589] dark:text-[#94a3b8]">person</span>
-                        <span class="text-[#111418] dark:text-white">Carlos Jimenez (cjimenez@email.com)</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <div class="flex items-start gap-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30">
-                  <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 mt-0.5">warning</span>
-                  <div class="flex-1">
-                    <p class="font-bold text-blue-800 dark:text-blue-300">Acción irreversible</p>
-                    <p class="text-sm text-blue-700 dark:text-blue-400">Una vez asignados los cupones, la acción no se podrá deshacer. Por favor, revisa cuidadosamente la lista de usuarios antes de confirmar.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="flex justify-between items-center gap-4 pt-6 border-t border-[#dbe0e6] dark:border-[#334155]">
-              <button class="px-6 py-3 rounded-lg text-sm font-bold bg-gray-100 dark:bg-[#334155] text-[#111418] dark:text-white hover:bg-gray-200 dark:hover:bg-[#475569] transition-colors flex items-center gap-2" on:click={() => massAssignStep = 1}>
-                <span class="material-symbols-outlined text-base">arrow_back</span>
-                <span>Volver</span>
-              </button>
-              <button class="px-6 py-3 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2" on:click={() => massAssignStep = 3}>
-                <span>Confirmar y Asignar</span>
-                <span class="material-symbols-outlined text-base">task_alt</span>
-              </button>
-            </div>
-            {:else if massAssignStep === 3}
-            <div class="flex flex-col py-6 items-center text-center">
-              <div class="flex items-center justify-center w-20 h-20 bg-[#e0f2fe] rounded-full mb-6">
-                <span class="material-symbols-outlined text-primary text-5xl">task_alt</span>
-              </div>
-              <h2 class="text-2xl font-bold text-[#111418] dark:text-white mb-3">¡Asignación completada con éxito!</h2>
-              <p class="text-base text-[#617589] dark:text-[#94a3b8] mb-8 max-w-lg">El proceso de asignación masiva para el cupón <strong class="text-[#111418] dark:text-white">PROMO2024</strong> ha finalizado. A continuación se muestra un resumen del resultado.</p>
-              <div class="w-full max-w-md bg-[#f6f7f8] dark:bg-[#101922] rounded-lg border border-[#dbe0e6] dark:border-[#334155] p-6 text-left space-y-4">
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-green-500">check_circle</span>
-                    <p class="text-[#111418] dark:text-white">Nuevos usuarios con cupón:</p>
-                  </div>
-                  <p class="font-bold text-[#111418] dark:text-white">147</p>
-                </div>
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-blue-400">info</span>
-                    <p class="text-[#111418] dark:text-white">Usuarios que ya tenían el cupón:</p>
-                  </div>
-                  <p class="font-bold text-[#111418] dark:text-white">3</p>
-                </div>
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-yellow-500">warning</span>
-                    <p class="text-[#111418] dark:text-white">Emails no válidos o no encontrados:</p>
-                  </div>
-                  <p class="font-bold text-[#111418] dark:text-white">5</p>
-                </div>
-              </div>
-            </div>
-            <div class="flex justify-end gap-4 pt-6 border-t border-[#dbe0e6] dark:border-[#334155]">
-              <button class="px-6 py-3 rounded-lg text-sm font-bold bg-gray-100 dark:bg-[#334155] text-[#111418] dark:text-white hover:bg-gray-200 dark:hover:bg-[#475569] transition-colors" on:click={closeMassAssignModal}>Cerrar</button>
-              <button class="px-6 py-3 rounded-lg text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2" on:click={closeMassAssignModal}>
-                <span>Ver cupones asignados</span>
-                <span class="material-symbols-outlined text-base">arrow_forward</span>
-              </button>
-            </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-{/if}
 
-<!-- Details Sidebar Overlay -->
 {#if isDetailsSidebarOpen}
   <div class="fixed inset-0 bg-black/50 z-40 transition-opacity" on:click={closeDetailsSidebar} on:keydown={(e) => e.key === 'Escape' && closeDetailsSidebar()} role="button" tabindex="0"></div>
 {/if}
@@ -1443,13 +1263,34 @@
               </dl>
             </div>
 
-            <!-- Assigned Users (Placeholder) -->
+            <!-- Assigned Users -->
             <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
               <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">Usuarios Asignados</h3>
-              <p class="text-sm text-slate-500 dark:text-slate-400">
-                Este cupón está disponible para todos los usuarios que cumplan con las restricciones configuradas.
-              </p>
-              <!-- Future: Add list of specifically assigned users from asignacion_cupon table -->
+              
+              {#if loadingAssignedUsers}
+                <div class="flex items-center justify-center py-8">
+                  <span class="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
+                </div>
+              {:else if assignedUsuarios.length > 0}
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                  {#each assignedUsuarios as usuario}
+                    <div class="flex items-center gap-3 p-2 bg-white dark:bg-slate-900 rounded-lg">
+                      <span class="material-symbols-outlined text-primary text-xl">person</span>
+                      <div class="flex-1">
+                        <p class="text-sm font-medium text-slate-900 dark:text-white">{usuario.nombre}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{usuario.email}</p>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                  Total: {assignedUsuarios.length} usuario{assignedUsuarios.length !== 1 ? 's' : ''}
+                </p>
+              {:else}
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                  Este cupón está disponible para todos los usuarios que cumplan con las restricciones configuradas.
+                </p>
+              {/if}
             </div>
           </div>
         {/if}
@@ -1555,12 +1396,28 @@
         {:else if massAssignStep === 2}
           <!-- Step 2: Confirmation -->
           <div class="space-y-4">
-            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">Confirmar asignación</h3>
-              <p class="text-blue-800 dark:text-blue-300 text-sm">
-                Estás a punto de asignar el cupón <span class="font-mono font-semibold">{selectedCupon?.codigo}</span> a {selectedUsuarios.length} usuario{selectedUsuarios.length !== 1 ? 's' : ''}.
-              </p>
+            <!-- Coupon Selection -->
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-4">
+              <h4 class="font-semibold text-slate-900 dark:text-white mb-3">Selecciona el cupón a asignar:</h4>
+              <select 
+                bind:value={selectedCupon}
+                class="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50"
+              >
+                <option value={null}>Selecciona un cupón...</option>
+                {#each cupones as cupon}
+                  <option value={cupon}>{cupon.codigo} - {cupon.nombre} ({getTipoLabel(cupon.tipo_cupon)}: {formatValor(cupon.tipo_cupon, cupon.valor)})</option>
+                {/each}
+              </select>
             </div>
+
+            {#if selectedCupon}
+              <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h3 class="font-semibold text-blue-900 dark:text-blue-200 mb-2">Confirmar asignación</h3>
+                <p class="text-blue-800 dark:text-blue-300 text-sm">
+                  Estás a punto de asignar el cupón <span class="font-mono font-semibold">{selectedCupon.codigo}</span> a {selectedUsuarios.length} usuario{selectedUsuarios.length !== 1 ? 's' : ''}.
+                </p>
+              </div>
+            {/if}
 
             <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-4">
               <h4 class="font-semibold text-slate-900 dark:text-white mb-3">Usuarios seleccionados:</h4>
@@ -1620,7 +1477,7 @@
             </button>
             <button
               on:click={assignCuponToUsers}
-              disabled={isAssigning}
+              disabled={isAssigning || !selectedCupon}
               class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {#if isAssigning}

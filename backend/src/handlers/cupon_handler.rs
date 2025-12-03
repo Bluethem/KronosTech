@@ -515,8 +515,8 @@ pub async fn assign_cupon_to_users(
                 // Insert new assignment
                 let result = sqlx::query(
                     r#"
-                    INSERT INTO asignacion_cupon (id_cupon, id_usuario, fecha_asignacion, activo)
-                    VALUES ($1, $2, CURRENT_TIMESTAMP, true)
+                    INSERT INTO asignacion_cupon (id_cupon, id_usuario, fecha_asignacion)
+                    VALUES ($1, $2, CURRENT_TIMESTAMP)
                     "#
                 )
                 .bind(payload.id_cupon)
@@ -561,7 +561,7 @@ pub async fn get_assigned_users(
             u.telefono
         FROM usuario u
         INNER JOIN asignacion_cupon ac ON u.id_usuario = ac.id_usuario
-        WHERE ac.id_cupon = $1 AND ac.activo = true
+        WHERE ac.id_cupon = $1
         ORDER BY u.nombre ASC
         "#
     )
@@ -572,6 +572,33 @@ pub async fn get_assigned_users(
         Ok(usuarios) => Ok(Json(usuarios)),
         Err(e) => {
             eprintln!("Error fetching assigned users: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Unassign coupon from a user
+pub async fn unassign_cupon_from_user(
+    State(pool): State<PgPool>,
+    Path((id_cupon, id_usuario)): Path<(i32, i32)>,
+) -> Result<StatusCode, StatusCode> {
+    match sqlx::query(
+        "DELETE FROM asignacion_cupon WHERE id_cupon = $1 AND id_usuario = $2"
+    )
+    .bind(id_cupon)
+    .bind(id_usuario)
+    .execute(&pool)
+    .await
+    {
+        Ok(result) => {
+            if result.rows_affected() > 0 {
+                Ok(StatusCode::NO_CONTENT)
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
+        }
+        Err(e) => {
+            eprintln!("Error unassigning cupon from user: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
