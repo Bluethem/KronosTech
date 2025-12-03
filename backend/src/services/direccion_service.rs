@@ -24,8 +24,9 @@ impl DireccionService {
         request: CrearDireccionRequest,
     ) -> Result<DireccionResponse, String> {
         // Validar tipo de dirección
+        let tipo_str = request.tipo.as_deref().unwrap_or("envio");
         let tipo_valido = matches!(
-            request.tipo.to_lowercase().as_str(),
+            tipo_str.to_lowercase().as_str(),
             "envio" | "facturacion" | "ambos"
         );
         if !tipo_valido {

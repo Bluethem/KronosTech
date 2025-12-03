@@ -46,9 +46,9 @@ pub use usuario::{Usuario, UsuarioResponse, LoginRequest, LoginResponse, Registe
 pub use carrito::{Carrito, CarritoDetalle, CarritoResponse, CarritoItemResponse, AgregarAlCarritoRequest, ActualizarCantidadRequest};
 
 // Direcciones, Ventas, Pagos - Implementación del compañero + DTOs agregados
-pub use direccion::{Direccion, CrearDireccionRequest, ActualizarDireccionRequest};
-pub use venta::{Venta, ProcesarCheckoutRequest, CalcularTotalResponse, VentaResponse, DetalleVentaResponse};
-pub use metodo_pago::MetodoPago;
+pub use direccion::{Direccion, CrearDireccionRequest, ActualizarDireccionRequest, TipoDireccion, DireccionResponse};
+pub use venta::{Venta, ProcesarCheckoutRequest, CalcularTotalResponse, VentaResponse, DetalleVentaResponse, EstadoPedido, EstadoPago};
+pub use metodo_pago::{MetodoPago, MetodoPagoResponse};
 
 // Modelos adicionales del compañero
 pub use administrador::Administrador;
@@ -60,7 +60,7 @@ pub use descuento::Descuento;
 pub use cupon::Cupon;
 pub use asignacion_cupon::AsignacionCupon;
 pub use uso_cupon::UsoCupon;
-pub use carrito_detalle::CarritoDetalle;
+// CarritoDetalle ya está exportado desde carrito.rs arriba
 pub use detalle_venta::DetalleVenta;
 pub use metodo_pago_cliente::MetodoPagoCliente;
 pub use pago::Pago;

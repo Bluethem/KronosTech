@@ -173,7 +173,7 @@ impl DireccionRepository {
         }
 
         let pais = request.pais.clone().unwrap_or_else(|| "Perú".to_string());
-        let tipo = request.tipo.as_str();
+        let tipo = request.tipo.as_deref().unwrap_or("envio");
 
         #[derive(sqlx::FromRow)]
         struct DireccionRow {

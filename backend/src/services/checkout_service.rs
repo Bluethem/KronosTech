@@ -75,6 +75,7 @@ impl CheckoutService {
             descuento_total,
             costo_envio,
             total,
+            items_count: items.len() as i32,
         })
     }
 
@@ -100,7 +101,7 @@ impl CheckoutService {
             .map_err(|e| format!("Error al buscar dirección: {}", e))?
             .ok_or("Dirección no encontrada")?;
 
-        if !direccion.activo {
+        if !direccion.activo.unwrap_or(true) {
             return Err("La dirección seleccionada no está activa".to_string());
         }
 
@@ -154,8 +155,8 @@ impl CheckoutService {
         let total = subtotal_decimal - descuento_total + costo_envio;
 
         // Calcular comisión del método de pago
-        let comision_porcentaje = metodo_pago.comision_porcentaje;
-        let comision_fija = metodo_pago.comision_fija;
+        let comision_porcentaje = metodo_pago.comision_porcentaje.unwrap_or(Decimal::ZERO);
+        let comision_fija = metodo_pago.comision_fija.unwrap_or(Decimal::ZERO);
         let comision = (total * comision_porcentaje / Decimal::from(100)) + comision_fija;
 
         // ========== CREAR VENTA ==========
@@ -228,7 +229,7 @@ impl CheckoutService {
                 imagen: item.imagen_principal.clone(),
                 cantidad: item.cantidad,
                 precio_unitario: detalle.precio_unitario,
-                descuento_unitario: detalle.descuento_unitario,
+                descuento_unitario: detalle.descuento_unitario.unwrap_or(Decimal::ZERO),
                 precio_final: detalle.precio_final,
                 subtotal: detalle.subtotal,
             });
