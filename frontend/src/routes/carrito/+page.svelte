@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { cart, cartItems, cartSubtotal, cartItemCount } from '$lib/stores/cart';
   import { cartService } from '$lib/services/cart';
+  import { checkoutService } from '$lib/services/checkout';
   import { isAuthenticated } from '$lib/stores/auth';
   import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Tag } from 'lucide-svelte';
 
@@ -10,11 +11,14 @@
   let isUpdatingId: number | null = null;
   let isClearing = false;
   let isLoading = true;
+  let isValidatingCoupon = false;
 
-  // Cupón (solo UI por ahora)
+  // Cupón
   let couponCode = '';
   let couponMessage = '';
   let couponStatus: 'success' | 'error' | '' = '';
+  let appliedCoupon = '';
+  let couponDiscount = 0;
 
   // Derivados del carrito
   $: subtotal = $cart?.subtotal ?? 0;
@@ -22,7 +26,7 @@
   $: itemCount = $cartItemCount ?? 0;
 
   // Valores fijos por ahora (se pueden calcular en el backend después)
-  $: descuento = 0; // TODO: implementar cupones en backend
+  $: descuento = couponDiscount;
   $: envio = null; // null => se calcula en checkout
   $: total = Number(subtotal) - descuento + (envio ?? 0);
 
@@ -92,7 +96,7 @@
     }
   }
 
-  function handleApplyCoupon() {
+  async function handleApplyCoupon() {
     couponMessage = '';
     couponStatus = '';
 
@@ -102,9 +106,42 @@
       return;
     }
 
-    // TODO: conectar con backend cuando tengas endpoint de cupones
-    couponMessage = 'Cupón no válido o funcionalidad no implementada aún.';
-    couponStatus = 'error';
+    isValidatingCoupon = true;
+
+    try {
+      // Validar cupón llamando al backend
+      const result = await checkoutService.calcularTotal(undefined, couponCode);
+
+      if (result.cupon_aplicado) {
+        appliedCoupon = result.cupon_aplicado;
+        couponDiscount = result.descuento_cupon;
+        couponMessage = `¡Cupón "${result.cupon_aplicado}" aplicado! Descuento: S/. ${result.descuento_cupon.toFixed(2)}`;
+        couponStatus = 'success';
+
+        // Guardar en localStorage para usarlo en checkout
+        localStorage.setItem('applied_coupon', result.cupon_aplicado);
+      } else {
+        couponMessage = 'Cupón no válido.';
+        couponStatus = 'error';
+      }
+    } catch (error: any) {
+      couponMessage = error.message || 'Error al validar cupón';
+      couponStatus = 'error';
+      appliedCoupon = '';
+      couponDiscount = 0;
+      localStorage.removeItem('applied_coupon');
+    } finally {
+      isValidatingCoupon = false;
+    }
+  }
+
+  function removeCoupon() {
+    couponCode = '';
+    appliedCoupon = '';
+    couponDiscount = 0;
+    couponMessage = '';
+    couponStatus = '';
+    localStorage.removeItem('applied_coupon');
   }
 
   function goToCatalog() {
@@ -387,17 +424,29 @@
             <div class="flex gap-2">
               <input
                 type="text"
-                class="flex-1 rounded-lg border border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm text-text-light dark:text-text-dark placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                class="flex-1 rounded-lg border border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm text-text-light dark:text-text-dark placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Ingresa tu cupón"
                 bind:value={couponCode}
+                disabled={appliedCoupon !== '' || isValidatingCoupon}
               />
-              <button
-                type="button"
-                class="px-4 py-2 rounded-lg text-sm font-semibold border border-border-light dark:border-border-dark bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-text-light dark:text-text-dark"
-                on:click={handleApplyCoupon}
-              >
-                Aplicar
-              </button>
+              {#if appliedCoupon}
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg text-sm font-semibold border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-red-600 dark:text-red-400"
+                  on:click={removeCoupon}
+                >
+                  Remover
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-lg text-sm font-semibold border border-border-light dark:border-border-dark bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-text-light dark:text-text-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                  on:click={handleApplyCoupon}
+                  disabled={isValidatingCoupon}
+                >
+                  {isValidatingCoupon ? 'Validando...' : 'Aplicar'}
+                </button>
+              {/if}
             </div>
             {#if couponMessage}
               <p

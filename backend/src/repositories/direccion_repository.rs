@@ -62,20 +62,19 @@ impl DireccionRepository {
             Direccion {
                 id_direccion: row.id_direccion,
                 id_usuario: row.id_usuario,
-                tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
-                    .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+                tipo: Some(row.tipo),
                 nombre_completo: row.nombre_completo,
                 direccion_linea1: row.direccion_linea1,
                 direccion_linea2: row.direccion_linea2,
                 ciudad: row.ciudad,
                 departamento: row.departamento,
                 codigo_postal: row.codigo_postal,
-                pais: row.pais,
+                pais: Some(row.pais),
                 telefono_contacto: row.telefono_contacto,
                 referencia: row.referencia,
-                es_predeterminada: row.es_predeterminada,
-                activo: row.activo,
-                fecha_creacion: row.fecha_creacion,
+                es_predeterminada: Some(row.es_predeterminada),
+                activo: Some(row.activo),
+                fecha_creacion: Some(row.fecha_creacion.naive_utc()),
             }
         }).collect();
 
@@ -140,20 +139,19 @@ impl DireccionRepository {
         let direccion = row.map(|row| Direccion {
             id_direccion: row.id_direccion,
             id_usuario: row.id_usuario,
-            tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
-                .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+            tipo: Some(row.tipo),
             nombre_completo: row.nombre_completo,
             direccion_linea1: row.direccion_linea1,
             direccion_linea2: row.direccion_linea2,
             ciudad: row.ciudad,
             departamento: row.departamento,
             codigo_postal: row.codigo_postal,
-            pais: row.pais,
+            pais: Some(row.pais),
             telefono_contacto: row.telefono_contacto,
             referencia: row.referencia,
-            es_predeterminada: row.es_predeterminada,
-            activo: row.activo,
-            fecha_creacion: row.fecha_creacion,
+            es_predeterminada: Some(row.es_predeterminada),
+            activo: Some(row.activo),
+            fecha_creacion: Some(row.fecha_creacion.naive_utc()),
         });
 
         Ok(direccion)
@@ -239,20 +237,19 @@ impl DireccionRepository {
         let direccion = Direccion {
             id_direccion: row.id_direccion,
             id_usuario: row.id_usuario,
-            tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
-                .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+            tipo: Some(row.tipo),
             nombre_completo: row.nombre_completo,
             direccion_linea1: row.direccion_linea1,
             direccion_linea2: row.direccion_linea2,
             ciudad: row.ciudad,
             departamento: row.departamento,
             codigo_postal: row.codigo_postal,
-            pais: row.pais,
+            pais: Some(row.pais),
             telefono_contacto: row.telefono_contacto,
             referencia: row.referencia,
-            es_predeterminada: row.es_predeterminada,
-            activo: row.activo,
-            fecha_creacion: row.fecha_creacion,
+            es_predeterminada: Some(row.es_predeterminada),
+            activo: Some(row.activo),
+            fecha_creacion: Some(row.fecha_creacion.naive_utc()),
         };
 
         Ok(direccion)
@@ -307,8 +304,7 @@ impl DireccionRepository {
                 pais = COALESCE($10, pais),
                 telefono_contacto = COALESCE($11, telefono_contacto),
                 referencia = COALESCE($12, referencia),
-                es_predeterminada = COALESCE($13, es_predeterminada),
-                activo = COALESCE($14, activo)
+                es_predeterminada = COALESCE($13, es_predeterminada)
             WHERE id_direccion = $1 AND id_usuario = $2
             RETURNING
                 id_direccion,
@@ -339,8 +335,7 @@ impl DireccionRepository {
             request.pais,
             request.telefono_contacto,
             request.referencia,
-            request.es_predeterminada,
-            request.activo
+            request.es_predeterminada
         )
         .fetch_one(pool)
         .await?;
@@ -348,20 +343,19 @@ impl DireccionRepository {
         let direccion = Direccion {
             id_direccion: row.id_direccion,
             id_usuario: row.id_usuario,
-            tipo: crate::models::direccion::TipoDireccion::from_str(&row.tipo)
-                .unwrap_or(crate::models::direccion::TipoDireccion::Envio),
+            tipo: Some(row.tipo),
             nombre_completo: row.nombre_completo,
             direccion_linea1: row.direccion_linea1,
             direccion_linea2: row.direccion_linea2,
             ciudad: row.ciudad,
             departamento: row.departamento,
             codigo_postal: row.codigo_postal,
-            pais: row.pais,
+            pais: Some(row.pais),
             telefono_contacto: row.telefono_contacto,
             referencia: row.referencia,
-            es_predeterminada: row.es_predeterminada,
-            activo: row.activo,
-            fecha_creacion: row.fecha_creacion,
+            es_predeterminada: Some(row.es_predeterminada),
+            activo: Some(row.activo),
+            fecha_creacion: Some(row.fecha_creacion.naive_utc()),
         };
 
         Ok(direccion)

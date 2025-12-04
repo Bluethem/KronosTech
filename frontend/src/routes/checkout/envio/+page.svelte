@@ -84,8 +84,11 @@
 		globalError = '';
 
 		try {
-			// Calcular total con el backend
-			const result = await checkoutService.calcularTotal($direccionSeleccionada?.id_direccion);
+			// Recuperar cupón aplicado (si existe)
+			const codigoCupon = localStorage.getItem('applied_coupon') || undefined;
+
+			// Calcular total con el backend (incluye cupón si existe)
+			const result = await checkoutService.calcularTotal($direccionSeleccionada?.id_direccion, codigoCupon);
 			calculatedTotal = result;
 		} catch (err: any) {
 			globalError = err.message ?? 'Error al calcular total';
@@ -269,8 +272,20 @@
 							</span>
 						</div>
 
+						{#if calculatedTotal?.cupon_aplicado}
+							<div class="flex justify-between items-center text-emerald-400">
+								<span class="text-xs flex items-center gap-1">
+									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+									Cupón: {calculatedTotal.cupon_aplicado}
+								</span>
+								<span class="font-medium text-emerald-300">
+									− S/. {calculatedTotal.descuento_cupon.toFixed(2)}
+								</span>
+							</div>
+						{/if}
+
 						<div class="flex justify-between">
-							<span class="text-slate-400">Descuento</span>
+							<span class="text-slate-400">Descuento total</span>
 							<span class="font-medium">
 								{#if descuento > 0}
 									− S/. {descuento.toFixed(2)}

@@ -18,18 +18,18 @@ export interface MetodoPago {
 export interface CalcularTotalResponse {
 	subtotal: number;
 	descuento_total: number;
+	descuento_cupon: number;
 	costo_envio: number;
 	total: number;
-	// FUTURO: Información del cupón aplicado
-	// cupon_aplicado?: CuponInfo;
+	items_count: number;
+	cupon_aplicado?: string;
 }
 
 export interface ProcesarCheckoutRequest {
 	id_direccion: number;
 	id_metodo_pago: number;
 	notas_cliente?: string;
-	// FUTURO: Para cupones
-	// codigo_cupon?: string;
+	codigo_cupon?: string;
 }
 
 export interface DetalleVenta {
@@ -101,17 +101,17 @@ class CheckoutService {
 	/**
 	 * Calcular total del checkout
 	 * @param idDireccion - ID de dirección para calcular costo de envío (opcional)
+	 * @param codigoCupon - Código de cupón para aplicar descuento (opcional)
 	 */
-	async calcularTotal(idDireccion?: number): Promise<CalcularTotalResponse> {
+	async calcularTotal(idDireccion?: number, codigoCupon?: string): Promise<CalcularTotalResponse> {
 		try {
 			const params: any = {};
 			if (idDireccion) {
 				params.id_direccion = idDireccion;
 			}
-			// FUTURO: Para cupones
-			// if (codigoCupon) {
-			//   params.codigo_cupon = codigoCupon;
-			// }
+			if (codigoCupon && codigoCupon.trim()) {
+				params.codigo_cupon = codigoCupon.trim().toUpperCase();
+			}
 
 			const { data } = await apiAuth.get<ApiResponse<CalcularTotalResponse>>(
 				'/checkout/calcular-total',

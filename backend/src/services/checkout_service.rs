@@ -23,7 +23,7 @@ impl CheckoutService {
         pool: &PgPool,
         id_usuario: i32,
         _id_direccion: Option<i32>, // Para futuro: calcular costo envío según ubicación
-        // FUTURO: codigo_cupon: Option<String> - Para aplicar cupones
+        codigo_cupon: Option<String>,
     ) -> Result<CalcularTotalResponse, String> {
         // Obtener carrito del usuario
         let carrito = CarritoRepository::get_or_create_carrito_usuario(pool, id_usuario)
@@ -44,14 +44,19 @@ impl CheckoutService {
             .map(|item| item.subtotal)
             .fold(Decimal::ZERO, |acc, x| acc + x);
 
-        // FUTURO: Aplicar descuentos de cupón
-        // TODO: Implementar lógica de validación y aplicación de cupones
-        // let descuento_cupon = if let Some(codigo) = codigo_cupon {
-        //     validar_y_calcular_descuento_cupon(pool, &codigo, subtotal_decimal).await?
-        // } else {
-        //     Decimal::ZERO
-        // };
-        let descuento_cupon = Decimal::ZERO;
+        // Aplicar descuentos de cupón
+        let (descuento_cupon, cupon_codigo) = if let Some(codigo) = codigo_cupon {
+            match CheckoutRepository::validar_cupon(pool, &codigo, id_usuario, subtotal_decimal).await {
+                Ok(Some(cupon)) => {
+                    let descuento = Self::calcular_descuento_cupon(&cupon, subtotal_decimal);
+                    (descuento, Some(cupon.codigo))
+                },
+                Ok(None) => (Decimal::ZERO, None),
+                Err(e) => return Err(e),
+            }
+        } else {
+            (Decimal::ZERO, None)
+        };
 
         // Calcular descuentos de productos (ya incluidos en precio_venta)
         let descuento_productos = Decimal::ZERO; // Los descuentos ya están en el precio
@@ -73,10 +78,28 @@ impl CheckoutService {
         Ok(CalcularTotalResponse {
             subtotal: subtotal_decimal,
             descuento_total,
+            descuento_cupon,
             costo_envio,
             total,
             items_count: items.len() as i32,
+            cupon_aplicado: cupon_codigo,
         })
+    }
+
+    /// Calcular descuento según tipo de cupón
+    fn calcular_descuento_cupon(cupon: &crate::models::Cupon, subtotal: Decimal) -> Decimal {
+        match cupon.tipo_cupon.as_str() {
+            "porcentaje" => {
+                // Descuento porcentual
+                let descuento = (subtotal * cupon.valor) / Decimal::from(100);
+                descuento.min(subtotal) // No puede ser mayor que el subtotal
+            },
+            "monto_fijo" => {
+                // Descuento de monto fijo
+                cupon.valor.min(subtotal) // No puede ser mayor que el subtotal
+            },
+            _ => Decimal::ZERO,
+        }
     }
 
     /// Procesar checkout completo (TRANSACCIONAL)
@@ -141,9 +164,21 @@ impl CheckoutService {
             .map(|item| item.subtotal)
             .fold(Decimal::ZERO, |acc, x| acc + x);
 
-        // FUTURO: Validar y aplicar cupón
-        // TODO: Implementar validación de cupón (fecha vigencia, usos, compra mínima)
-        let descuento_total = Decimal::ZERO;
+        // Validar y aplicar cupón
+        let (descuento_cupon, cupon_opt) = if let Some(ref codigo) = request.codigo_cupon {
+            match CheckoutRepository::validar_cupon(pool, codigo, id_usuario, subtotal_decimal).await {
+                Ok(Some(cupon)) => {
+                    let descuento = Self::calcular_descuento_cupon(&cupon, subtotal_decimal);
+                    (descuento, Some(cupon))
+                },
+                Ok(None) => (Decimal::ZERO, None),
+                Err(e) => return Err(e),
+            }
+        } else {
+            (Decimal::ZERO, None)
+        };
+
+        let descuento_total = descuento_cupon;
 
         // Calcular costo de envío
         let costo_envio = if subtotal_decimal >= Decimal::from(100) {
@@ -267,8 +302,18 @@ impl CheckoutService {
             .await
             .map_err(|e| format!("Error al convertir carrito: {}", e))?;
 
-        // FUTURO: Registrar uso de cupón si se aplicó
-        // TODO: Crear registro en tabla uso_cupon
+        // Registrar uso de cupón si se aplicó
+        if let Some(cupon) = cupon_opt {
+            CheckoutRepository::registrar_uso_cupon(
+                &mut tx,
+                cupon.id_cupon,
+                id_usuario,
+                venta.id_venta,
+                descuento_cupon,
+            )
+            .await
+            .map_err(|e| format!("Error al registrar uso de cupón: {}", e))?;
+        }
 
         // ========== COMMIT TRANSACCIÓN ==========
 

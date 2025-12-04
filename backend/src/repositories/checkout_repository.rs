@@ -6,18 +6,108 @@ use crate::models::{
     EstadoPedido, EstadoPago, DetalleVentaResponse
 };
 
+// Estructura intermedia para mapear queries de venta
+#[derive(sqlx::FromRow)]
+struct VentaRow {
+    id_venta: i32,
+    numero_pedido: String,
+    id_usuario: i32,
+    id_carrito: Option<i32>,
+    subtotal: Decimal,
+    descuento_total: Option<Decimal>,
+    costo_envio: Option<Decimal>,
+    total: Decimal,
+    moneda: Option<String>,
+    estado: String,
+    estado_pago: String,
+    direccion_envio: Option<String>,
+    ciudad: Option<String>,
+    departamento: Option<String>,
+    codigo_postal: Option<String>,
+    telefono_contacto: Option<String>,
+    metodo_envio: Option<String>,
+    numero_tracking: Option<String>,
+    fecha_pedido: chrono::DateTime<chrono::Utc>,
+    fecha_pago: Option<chrono::DateTime<chrono::Utc>>,
+    fecha_confirmacion: Option<chrono::DateTime<chrono::Utc>>,
+    fecha_envio: Option<chrono::DateTime<chrono::Utc>>,
+    fecha_entrega_estimada: Option<chrono::NaiveDate>,
+    fecha_entrega: Option<chrono::DateTime<chrono::Utc>>,
+    fecha_cancelacion: Option<chrono::DateTime<chrono::Utc>>,
+    notas_cliente: Option<String>,
+    notas_admin: Option<String>,
+    ip_cliente: Option<String>,
+    user_agent: Option<String>,
+    fecha_actualizacion: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl From<VentaRow> for Venta {
+    fn from(row: VentaRow) -> Self {
+        Venta {
+            id_venta: row.id_venta,
+            numero_pedido: row.numero_pedido,
+            id_usuario: row.id_usuario,
+            id_carrito: row.id_carrito,
+            subtotal: row.subtotal,
+            descuento_total: row.descuento_total,
+            costo_envio: row.costo_envio,
+            total: row.total,
+            moneda: row.moneda,
+            estado: Some(row.estado),
+            estado_pago: Some(row.estado_pago),
+            direccion_envio: row.direccion_envio,
+            ciudad: row.ciudad,
+            departamento: row.departamento,
+            codigo_postal: row.codigo_postal,
+            telefono_contacto: row.telefono_contacto,
+            metodo_envio: row.metodo_envio,
+            numero_tracking: row.numero_tracking,
+            fecha_pedido: Some(row.fecha_pedido.naive_utc()),
+            fecha_pago: row.fecha_pago.map(|dt| dt.naive_utc()),
+            fecha_confirmacion: row.fecha_confirmacion.map(|dt| dt.naive_utc()),
+            fecha_envio: row.fecha_envio.map(|dt| dt.naive_utc()),
+            fecha_entrega_estimada: row.fecha_entrega_estimada,
+            fecha_entrega: row.fecha_entrega.map(|dt| dt.naive_utc()),
+            fecha_cancelacion: row.fecha_cancelacion.map(|dt| dt.naive_utc()),
+            notas_cliente: row.notas_cliente,
+            notas_admin: row.notas_admin,
+            ip_cliente: row.ip_cliente,
+            user_agent: row.user_agent,
+            fecha_actualizacion: row.fecha_actualizacion.map(|dt| dt.naive_utc()),
+        }
+    }
+}
+
 pub struct CheckoutRepository;
 
 impl CheckoutRepository {
     /// Obtener métodos de pago activos
     pub async fn get_metodos_pago_activos(pool: &PgPool) -> Result<Vec<MetodoPago>, sqlx::Error> {
-        let metodos = sqlx::query_as!(
-            MetodoPago,
+        #[derive(sqlx::FromRow)]
+        struct MetodoPagoRow {
+            id_metodo_pago: i32,
+            nombre: String,
+            tipo: String,
+            proveedor: Option<String>,
+            descripcion: Option<String>,
+            icono: Option<String>,
+            comision_porcentaje: rust_decimal::Decimal,
+            comision_fija: rust_decimal::Decimal,
+            requiere_verificacion: bool,
+            tiempo_procesamiento: Option<String>,
+            instrucciones: Option<String>,
+            orden: i32,
+            activo: bool,
+            fecha_creacion: chrono::DateTime<chrono::Utc>,
+        }
+
+        let rows = sqlx::query_as!(
+            MetodoPagoRow,
             r#"
             SELECT
                 id_metodo_pago,
                 nombre as "nombre!",
-                tipo as "tipo!: _",
+                tipo as "tipo!",
                 proveedor,
                 descripcion,
                 icono,
@@ -37,6 +127,23 @@ impl CheckoutRepository {
         .fetch_all(pool)
         .await?;
 
+        let metodos = rows.into_iter().map(|row| MetodoPago {
+            id_metodo_pago: row.id_metodo_pago,
+            nombre: row.nombre,
+            tipo: row.tipo,
+            proveedor: row.proveedor,
+            descripcion: row.descripcion,
+            icono: row.icono,
+            comision_porcentaje: Some(row.comision_porcentaje),
+            comision_fija: Some(row.comision_fija),
+            requiere_verificacion: Some(row.requiere_verificacion),
+            tiempo_procesamiento: row.tiempo_procesamiento,
+            instrucciones: row.instrucciones,
+            orden: Some(row.orden),
+            activo: Some(row.activo),
+            fecha_creacion: Some(row.fecha_creacion.naive_utc()),
+        }).collect();
+
         Ok(metodos)
     }
 
@@ -45,13 +152,31 @@ impl CheckoutRepository {
         pool: &PgPool,
         id_metodo_pago: i32,
     ) -> Result<Option<MetodoPago>, sqlx::Error> {
-        let metodo = sqlx::query_as!(
-            MetodoPago,
+        #[derive(sqlx::FromRow)]
+        struct MetodoPagoRow {
+            id_metodo_pago: i32,
+            nombre: String,
+            tipo: String,
+            proveedor: Option<String>,
+            descripcion: Option<String>,
+            icono: Option<String>,
+            comision_porcentaje: rust_decimal::Decimal,
+            comision_fija: rust_decimal::Decimal,
+            requiere_verificacion: bool,
+            tiempo_procesamiento: Option<String>,
+            instrucciones: Option<String>,
+            orden: i32,
+            activo: bool,
+            fecha_creacion: chrono::DateTime<chrono::Utc>,
+        }
+
+        let row = sqlx::query_as!(
+            MetodoPagoRow,
             r#"
             SELECT
                 id_metodo_pago,
                 nombre as "nombre!",
-                tipo as "tipo!: _",
+                tipo as "tipo!",
                 proveedor,
                 descripcion,
                 icono,
@@ -70,6 +195,23 @@ impl CheckoutRepository {
         )
         .fetch_optional(pool)
         .await?;
+
+        let metodo = row.map(|row| MetodoPago {
+            id_metodo_pago: row.id_metodo_pago,
+            nombre: row.nombre,
+            tipo: row.tipo,
+            proveedor: row.proveedor,
+            descripcion: row.descripcion,
+            icono: row.icono,
+            comision_porcentaje: Some(row.comision_porcentaje),
+            comision_fija: Some(row.comision_fija),
+            requiere_verificacion: Some(row.requiere_verificacion),
+            tiempo_procesamiento: row.tiempo_procesamiento,
+            instrucciones: row.instrucciones,
+            orden: Some(row.orden),
+            activo: Some(row.activo),
+            fecha_creacion: Some(row.fecha_creacion.naive_utc()),
+        });
 
         Ok(metodo)
     }
@@ -116,8 +258,8 @@ impl CheckoutRepository {
             direccion.direccion_linea2.as_ref().unwrap_or(&String::new())
         );
 
-        let venta = sqlx::query_as!(
-            Venta,
+        let row = sqlx::query_as!(
+            VentaRow,
             r#"
             INSERT INTO venta (
                 numero_pedido, id_usuario, id_carrito,
@@ -139,12 +281,12 @@ impl CheckoutRepository {
                 id_usuario,
                 id_carrito,
                 subtotal as "subtotal!",
-                descuento_total as "descuento_total!",
-                costo_envio as "costo_envio!",
+                descuento_total,
+                costo_envio,
                 total as "total!",
-                moneda as "moneda!",
-                estado as "estado!: _",
-                estado_pago as "estado_pago!: _",
+                moneda,
+                estado::TEXT as "estado!",
+                estado_pago::TEXT as "estado_pago!",
                 direccion_envio,
                 ciudad,
                 departamento,
@@ -163,7 +305,7 @@ impl CheckoutRepository {
                 notas_admin,
                 ip_cliente,
                 user_agent,
-                fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                fecha_actualizacion as "fecha_actualizacion: chrono::DateTime<chrono::Utc>"
             "#,
             numero_pedido,
             id_usuario,
@@ -184,7 +326,7 @@ impl CheckoutRepository {
         .fetch_one(&mut **tx)
         .await?;
 
-        Ok(venta)
+        Ok(row.into())
     }
 
     /// Crear detalle de venta
@@ -279,6 +421,7 @@ impl CheckoutRepository {
                 proveedor_pago,
                 id_transaccion_proveedor,
                 token_pago,
+                respuesta_proveedor,
                 ultimos_4_digitos,
                 marca_tarjeta,
                 ip_cliente,
@@ -307,10 +450,10 @@ impl CheckoutRepository {
             id_metodo_pago: pago.id_metodo_pago,
             id_metodo_pago_cliente: pago.id_metodo_pago_cliente,
             numero_transaccion: pago.numero_transaccion,
-            estado: pago.estado,
+            estado: Some(pago.estado),
             monto: pago.monto,
-            moneda: pago.moneda,
-            comision: pago.comision,
+            moneda: Some(pago.moneda),
+            comision: Some(pago.comision),
             monto_neto: pago.monto_neto,
             proveedor_pago: pago.proveedor_pago,
             id_transaccion_proveedor: pago.id_transaccion_proveedor,
@@ -320,11 +463,11 @@ impl CheckoutRepository {
             marca_tarjeta: pago.marca_tarjeta,
             ip_cliente: pago.ip_cliente,
             user_agent: pago.user_agent,
-            fecha_pago: pago.fecha_pago,
-            fecha_creacion: pago.fecha_creacion,
-            fecha_actualizacion: pago.fecha_actualizacion,
+            fecha_pago: pago.fecha_pago.map(|dt| dt.naive_utc()),
+            fecha_creacion: Some(pago.fecha_creacion.naive_utc()),
+            fecha_actualizacion: pago.fecha_actualizacion.map(|dt| dt.to_naive_datetime()),
             nota_error: pago.nota_error,
-            intentos_fallidos: pago.intentos_fallidos,
+            intentos_fallidos: Some(pago.intentos_fallidos),
         })
     }
 
@@ -429,8 +572,8 @@ impl CheckoutRepository {
         id_venta: i32,
         id_usuario: i32,
     ) -> Result<Option<Venta>, sqlx::Error> {
-        let venta = sqlx::query_as!(
-            Venta,
+        let row = sqlx::query_as!(
+            VentaRow,
             r#"
             SELECT
                 id_venta,
@@ -438,12 +581,12 @@ impl CheckoutRepository {
                 id_usuario,
                 id_carrito,
                 subtotal as "subtotal!",
-                descuento_total as "descuento_total!",
-                costo_envio as "costo_envio!",
+                descuento_total,
+                costo_envio,
                 total as "total!",
-                moneda as "moneda!",
-                estado as "estado!: _",
-                estado_pago as "estado_pago!: _",
+                moneda,
+                estado::TEXT as "estado!",
+                estado_pago::TEXT as "estado_pago!",
                 direccion_envio,
                 ciudad,
                 departamento,
@@ -462,7 +605,7 @@ impl CheckoutRepository {
                 notas_admin,
                 ip_cliente,
                 user_agent,
-                fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                fecha_actualizacion as "fecha_actualizacion: chrono::DateTime<chrono::Utc>"
             FROM venta
             WHERE id_venta = $1 AND id_usuario = $2
             "#,
@@ -472,7 +615,7 @@ impl CheckoutRepository {
         .fetch_optional(pool)
         .await?;
 
-        Ok(venta)
+        Ok(row.map(|r| r.into()))
     }
 
     /// Obtener detalles de venta con información de productos
@@ -514,8 +657,8 @@ impl CheckoutRepository {
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Venta>, sqlx::Error> {
-        let ventas = sqlx::query_as!(
-            Venta,
+        let rows = sqlx::query_as!(
+            VentaRow,
             r#"
             SELECT
                 id_venta,
@@ -523,12 +666,12 @@ impl CheckoutRepository {
                 id_usuario,
                 id_carrito,
                 subtotal as "subtotal!",
-                descuento_total as "descuento_total!",
-                costo_envio as "costo_envio!",
+                descuento_total,
+                costo_envio,
                 total as "total!",
-                moneda as "moneda!",
-                estado as "estado!: _",
-                estado_pago as "estado_pago!: _",
+                moneda,
+                estado::TEXT as "estado!",
+                estado_pago::TEXT as "estado_pago!",
                 direccion_envio,
                 ciudad,
                 departamento,
@@ -547,7 +690,7 @@ impl CheckoutRepository {
                 notas_admin,
                 ip_cliente,
                 user_agent,
-                fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                fecha_actualizacion as "fecha_actualizacion: chrono::DateTime<chrono::Utc>"
             FROM venta
             WHERE id_usuario = $1
             ORDER BY fecha_pedido DESC
@@ -560,6 +703,178 @@ impl CheckoutRepository {
         .fetch_all(pool)
         .await?;
 
+        let ventas = rows.into_iter().map(|r| r.into()).collect();
         Ok(ventas)
+    }
+
+    /// Validar y obtener cupón por código
+    pub async fn validar_cupon(
+        pool: &PgPool,
+        codigo: &str,
+        id_usuario: i32,
+        subtotal: Decimal,
+    ) -> Result<Option<crate::models::Cupon>, String> {
+        // Obtener cupón activo y dentro de fechas válidas
+        let cupon_result = sqlx::query_as!(
+            crate::models::Cupon,
+            r#"
+            SELECT
+                id_cupon,
+                codigo,
+                nombre,
+                descripcion,
+                tipo_cupon::TEXT as "tipo_cupon!",
+                valor as "valor!",
+                aplica_a::TEXT as "aplica_cupon!",
+                id_referencia,
+                compra_minima,
+                usos_maximos as usos_maximos_totales,
+                usos_maximos_por_usuario,
+                usos_actuales,
+                solo_nuevos_usuarios,
+                solo_primera_compra,
+                fecha_inicio,
+                fecha_fin,
+                activo,
+                fecha_creacion,
+                fecha_actualizacion
+            FROM cupon
+            WHERE UPPER(codigo) = UPPER($1)
+              AND activo = true
+              AND CURRENT_TIMESTAMP BETWEEN fecha_inicio AND fecha_fin
+            "#,
+            codigo
+        )
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| format!("Error al buscar cupón: {}", e))?;
+
+        let cupon = match cupon_result {
+            Some(c) => c,
+            None => return Err("Cupón no válido, inactivo o expirado".to_string()),
+        };
+
+        // Validar compra mínima
+        if let Some(compra_min) = cupon.compra_minima {
+            if subtotal < compra_min {
+                return Err(format!(
+                    "El cupón requiere una compra mínima de S/. {}",
+                    compra_min
+                ));
+            }
+        }
+
+        // Validar usos máximos totales
+        if let Some(usos_max) = cupon.usos_maximos_totales {
+            let usos_actuales = cupon.usos_actuales.unwrap_or(0);
+            if usos_actuales >= usos_max {
+                return Err("El cupón ha alcanzado su límite de usos".to_string());
+            }
+        }
+
+        // Validar usos por usuario
+        if let Some(usos_max_usuario) = cupon.usos_maximos_por_usuario {
+            let usos_usuario = sqlx::query!(
+                r#"
+                SELECT COUNT(*) as "count!"
+                FROM uso_cupon
+                WHERE id_cupon = $1 AND id_usuario = $2
+                "#,
+                cupon.id_cupon,
+                id_usuario
+            )
+            .fetch_one(pool)
+            .await
+            .map_err(|e| format!("Error al verificar usos del usuario: {}", e))?
+            .count;
+
+            if usos_usuario >= usos_max_usuario as i64 {
+                return Err("Ya has utilizado este cupón el máximo de veces permitido".to_string());
+            }
+        }
+
+        // Validar si es solo para nuevos usuarios
+        if cupon.solo_nuevos_usuarios.unwrap_or(false) {
+            let es_nuevo = sqlx::query!(
+                r#"
+                SELECT
+                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha_registro)) / 86400 as dias
+                FROM usuario
+                WHERE id_usuario = $1
+                "#,
+                id_usuario
+            )
+            .fetch_one(pool)
+            .await
+            .map_err(|e| format!("Error al verificar antigüedad del usuario: {}", e))?;
+
+            if let Some(dias) = es_nuevo.dias {
+                if dias > 7.0 {
+                    return Err("Este cupón es solo para nuevos usuarios (registrados hace menos de 7 días)".to_string());
+                }
+            }
+        }
+
+        // Validar si es solo para primera compra
+        if cupon.solo_primera_compra.unwrap_or(false) {
+            let compras_previas = sqlx::query!(
+                r#"
+                SELECT COUNT(*) as "count!"
+                FROM venta
+                WHERE id_usuario = $1 AND estado::TEXT != 'cancelado'
+                "#,
+                id_usuario
+            )
+            .fetch_one(pool)
+            .await
+            .map_err(|e| format!("Error al verificar compras previas: {}", e))?
+            .count;
+
+            if compras_previas > 0 {
+                return Err("Este cupón es solo para tu primera compra".to_string());
+            }
+        }
+
+        Ok(Some(cupon))
+    }
+
+    /// Registrar uso de cupón
+    pub async fn registrar_uso_cupon(
+        tx: &mut Transaction<'_, Postgres>,
+        id_cupon: i32,
+        id_usuario: i32,
+        id_venta: i32,
+        descuento_aplicado: Decimal,
+    ) -> Result<(), sqlx::Error> {
+        // Crear registro de uso
+        sqlx::query!(
+            r#"
+            INSERT INTO uso_cupon (
+                id_cupon, id_usuario, id_venta, descuento_aplicado, fecha_uso
+            )
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            "#,
+            id_cupon,
+            id_usuario,
+            id_venta,
+            descuento_aplicado
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        // Incrementar contador de usos del cupón
+        sqlx::query!(
+            r#"
+            UPDATE cupon
+            SET usos_actuales = COALESCE(usos_actuales, 0) + 1,
+                fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE id_cupon = $1
+            "#,
+            id_cupon
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(())
     }
 }

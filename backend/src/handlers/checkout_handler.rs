@@ -36,8 +36,7 @@ pub struct PaginationQuery {
 #[derive(Debug, Deserialize)]
 pub struct CalcularTotalQuery {
     pub id_direccion: Option<i32>,
-    // FUTURO: Para cupones
-    // pub codigo_cupon: Option<String>,
+    pub codigo_cupon: Option<String>,
 }
 
 // ==================== HELPER FUNCTIONS ====================
@@ -124,7 +123,7 @@ pub async fn calcular_total_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
     let id_usuario = extract_user_id(&headers)?;
 
-    match CheckoutService::calcular_total(&pool, id_usuario, params.id_direccion).await {
+    match CheckoutService::calcular_total(&pool, id_usuario, params.id_direccion, params.codigo_cupon).await {
         Ok(totales) => Ok((
             StatusCode::OK,
             Json(ApiResponse {

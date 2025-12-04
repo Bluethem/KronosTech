@@ -82,17 +82,18 @@ pub struct ProcesarCheckoutRequest {
     pub id_direccion: i32,
     pub id_metodo_pago: i32,
     pub notas_cliente: Option<String>,
-    // FUTURO: Para cupones
-    // pub codigo_cupon: Option<String>,
+    pub codigo_cupon: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct CalcularTotalResponse {
     pub subtotal: Decimal,
     pub descuento_total: Decimal,
+    pub descuento_cupon: Decimal,
     pub costo_envio: Decimal,
     pub total: Decimal,
     pub items_count: i32,
+    pub cupon_aplicado: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
