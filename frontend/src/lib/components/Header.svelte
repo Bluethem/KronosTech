@@ -26,6 +26,7 @@
 
   // Check if current page is an admin page (main)
   $: isAdminPage = [
+    '/admin',
     '/gestion-pedidos',
     '/reportes-ventas',
     '/inventario',
@@ -36,6 +37,9 @@
     '/gestion-cupones',
     '/gestion-reembolsos'
   ].some(path => $page.url.pathname.startsWith(path));
+
+  // Check if user is admin
+  $: isAdmin = $authUser && ($authUser.rol === 'administrador' || $authUser.rol === 'super_admin');
   
   async function handleAutocomplete() {
     if (searchQuery.trim().length < 2) {
@@ -113,13 +117,20 @@
     </a>
     <nav class="hidden lg:flex items-center gap-9">
       {#if isAdminPage}
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-pedidos">Gestión de Pedidos</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-ventas">Reportes de Ventas</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/inventario">Inventario</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-inventario">Reportes de Inventario</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-descuentos">Gestión de descuentos</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-cupones">Gestión de cupones</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-reembolsos">Gestión de reembolsos</a>
+        {#if $authUser?.rol === 'super_admin'}
+          <!-- Super Admin: Solo gestión de usuarios -->
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin">Dashboard</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin/usuarios">Usuarios</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin/administradores">Administradores</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin/logs">Logs</a>
+        {:else}
+          <!-- Administrador: Operaciones del día a día -->
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-pedidos">Pedidos</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/inventario">Inventario</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-descuentos">Descuentos</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-cupones">Cupones</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-reembolsos">Reembolsos</a>
+        {/if}
       {:else}
         <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/catalogo">Catálogo</a>
         <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/ofertas">Ofertas</a>
@@ -239,22 +250,45 @@
                 <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
                   {$authUser?.email}
                 </p>
+                {#if $authUser?.rol === 'super_admin'}
+                  <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-purple-500/10 to-pink-500/10 dark:from-purple-500/20 dark:to-pink-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+                    Super Admin
+                  </span>
+                {:else if $authUser?.rol === 'administrador'}
+                  <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-semibold bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                    Administrador
+                  </span>
+                {:else if $authUser?.rol === 'cliente'}
+                  <span class="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    Cliente
+                  </span>
+                {/if}
               </div>
               <div class="py-2">
-                <a
-                  href="/perfil"
-                  class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <UserCircle size={16} />
-                  Mi cuenta
-                </a>
-                <a
-                  href="/pedidos"
-                  class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <ShoppingCart size={16} />
-                  Mis pedidos
-                </a>
+                {#if isAdmin}
+                  <a
+                    href="/admin"
+                    class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <UserCircle size={16} />
+                    Panel de Administración
+                  </a>
+                {:else}
+                  <a
+                    href="/cuenta"
+                    class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <UserCircle size={16} />
+                    Mi cuenta
+                  </a>
+                  <a
+                    href="/cuenta/pedidos"
+                    class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <ShoppingCart size={16} />
+                    Mis pedidos
+                  </a>
+                {/if}
                 <button
                   on:click={handleLogout}
                   class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-red-600 dark:text-red-400"
@@ -308,13 +342,20 @@
   <div class="lg:hidden bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark">
     <nav class="flex flex-col gap-4 p-4">
       {#if isAdminPage}
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-pedidos">Gestión de Pedidos</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-ventas">Reportes de Ventas</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/inventario">Inventario</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/reportes-inventario">Reportes de Inventario</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-descuentos">Gestión de descuentos</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-cupones">Gestión de cupones</a>
-        <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-reembolsos">Gestión de reembolsos</a>
+        {#if $authUser?.rol === 'super_admin'}
+          <!-- Super Admin: Solo gestión de usuarios -->
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin">Dashboard</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin/usuarios">Usuarios</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin/administradores">Administradores</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/admin/logs">Logs</a>
+        {:else}
+          <!-- Administrador: Operaciones del día a día -->
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-pedidos">Pedidos</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/inventario">Inventario</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-descuentos">Descuentos</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-cupones">Cupones</a>
+          <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/gestion-reembolsos">Reembolsos</a>
+        {/if}
       {:else}
         <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/catalogo">Catálogo</a>
         <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/ofertas">Ofertas</a>

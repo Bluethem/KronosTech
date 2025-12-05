@@ -6,6 +6,8 @@ pub mod auth_handler;
 pub mod carrito_handler;
 pub mod direccion_handler;
 pub mod checkout_handler;
+pub mod metodo_pago_cliente_handler;
+pub mod admin_handler;
 
 // Handlers - Administración (main)
 pub mod venta;

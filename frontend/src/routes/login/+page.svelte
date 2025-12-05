@@ -44,7 +44,14 @@
       setUser(response.data.usuario);
       // Inicializar carrito después del login
       await cartService.initCart();
-      await goto('/catalogo');
+
+      // Redirigir según el rol del usuario
+      const userRole = response.data.usuario.rol;
+      if (userRole === 'administrador' || userRole === 'super_admin') {
+        await goto('/admin');
+      } else {
+        await goto('/cuenta');
+      }
     } catch (err: any) {
       apiError = err.message || 'No se pudo iniciar sesión. Inténtalo nuevamente.';
     } finally {

@@ -19,9 +19,9 @@ impl CarritoRepository {
                 id_usuario,
                 id_sesion,
                 estado::TEXT as "estado!",
-                fecha_expiracion as "fecha_expiracion: chrono::DateTime<chrono::Utc>",
-                fecha_creacion as "fecha_creacion!: chrono::DateTime<chrono::Utc>",
-                fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                fecha_expiracion,
+                fecha_creacion as "fecha_creacion!",
+                fecha_actualizacion as "fecha_actualizacion!"
             FROM carrito
             WHERE id_usuario = $1 AND estado = 'activo'
             ORDER BY fecha_actualizacion DESC
@@ -48,9 +48,9 @@ impl CarritoRepository {
                 id_usuario,
                 id_sesion,
                 estado::TEXT as "estado!",
-                fecha_expiracion as "fecha_expiracion: chrono::DateTime<chrono::Utc>",
-                fecha_creacion as "fecha_creacion!: chrono::DateTime<chrono::Utc>",
-                fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                fecha_expiracion,
+                fecha_creacion as "fecha_creacion!",
+                fecha_actualizacion as "fecha_actualizacion!"
             "#,
             id_usuario
         )
@@ -148,8 +148,8 @@ impl CarritoRepository {
                     id_producto_detalle,
                     cantidad,
                     precio_unitario,
-                    fecha_agregado as "fecha_agregado!: chrono::DateTime<chrono::Utc>",
-                    fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                    fecha_agregado as "fecha_agregado!",
+                    fecha_actualizacion as "fecha_actualizacion!"
                 "#,
                 cantidad,
                 item.id_carrito_detalle
@@ -171,8 +171,8 @@ impl CarritoRepository {
                     id_producto_detalle,
                     cantidad,
                     precio_unitario,
-                    fecha_agregado as "fecha_agregado!: chrono::DateTime<chrono::Utc>",
-                    fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                    fecha_agregado as "fecha_agregado!",
+                    fecha_actualizacion as "fecha_actualizacion!"
                 "#,
                 id_carrito,
                 id_producto_detalle,
@@ -205,8 +205,8 @@ impl CarritoRepository {
                 id_producto_detalle,
                 cantidad,
                 precio_unitario,
-                fecha_agregado as "fecha_agregado!: chrono::DateTime<chrono::Utc>",
-                fecha_actualizacion as "fecha_actualizacion!: chrono::DateTime<chrono::Utc>"
+                fecha_agregado as "fecha_agregado!",
+                fecha_actualizacion as "fecha_actualizacion!"
             "#,
             cantidad,
             id_carrito_detalle

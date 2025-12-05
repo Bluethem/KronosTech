@@ -20,6 +20,8 @@ use routes::{
     carrito_routes,
     direccion_routes,
     checkout_routes,
+    metodo_pago_cliente_routes,
+    admin_routes,
     venta_routes,
     inventario_routes,
     producto_routes,
@@ -62,6 +64,8 @@ async fn main() {
         .nest("/api", carrito_routes(pool.clone()))
         .nest("/api", direccion_routes(pool.clone()))
         .nest("/api", checkout_routes(pool.clone()))
+        .nest("/api/metodos-pago-cliente", metodo_pago_cliente_routes(pool.clone()))
+        .nest("/api/admin", admin_routes(pool.clone()))
         // Rutas de administración (main)
         .nest("/api", venta_routes(pool.clone()))
         .nest("/api", inventario_routes(pool.clone()))

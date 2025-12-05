@@ -133,3 +133,113 @@ pub async fn logout_handler() -> impl IntoResponse {
         }),
     )
 }
+
+// ==================== PERFIL ====================
+
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct ActualizarPerfilRequest {
+    pub nombre: Option<String>,
+    pub apellido: Option<String>,
+    pub telefono: Option<String>,
+    pub dni: Option<String>,
+}
+
+// PUT /api/auth/perfil
+pub async fn actualizar_perfil_handler(
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+    Json(payload): Json<ActualizarPerfilRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
+    // Extraer token del header Authorization
+    let token = headers
+        .get("Authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            if value.starts_with("Bearer ") {
+                Some(&value[7..])
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    success: false,
+                    message: "Token no proporcionado".to_string(),
+                }),
+            )
+        })?;
+
+    match AuthService::actualizar_perfil(&pool, token, payload).await {
+        Ok(usuario) => Ok((
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(usuario),
+                message: Some("Perfil actualizado exitosamente".to_string()),
+            }),
+        )),
+        Err(err) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                success: false,
+                message: err,
+            }),
+        )),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CambiarPasswordRequest {
+    pub password_actual: String,
+    pub password_nuevo: String,
+}
+
+// PUT /api/auth/cambiar-password
+pub async fn cambiar_password_handler(
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+    Json(payload): Json<CambiarPasswordRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
+    // Extraer token del header Authorization
+    let token = headers
+        .get("Authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            if value.starts_with("Bearer ") {
+                Some(&value[7..])
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    success: false,
+                    message: "Token no proporcionado".to_string(),
+                }),
+            )
+        })?;
+
+    match AuthService::cambiar_password(&pool, token, payload).await {
+        Ok(_) => Ok((
+            StatusCode::OK,
+            Json(ApiResponse::<()> {
+                success: true,
+                data: None,
+                message: Some("Contraseña actualizada exitosamente".to_string()),
+            }),
+        )),
+        Err(err) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                success: false,
+                message: err,
+            }),
+        )),
+    }
+}

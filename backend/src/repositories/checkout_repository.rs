@@ -107,7 +107,7 @@ impl CheckoutRepository {
             SELECT
                 id_metodo_pago,
                 nombre as "nombre!",
-                tipo as "tipo!",
+                tipo::TEXT as "tipo!",
                 proveedor,
                 descripcion,
                 icono,
@@ -176,7 +176,7 @@ impl CheckoutRepository {
             SELECT
                 id_metodo_pago,
                 nombre as "nombre!",
-                tipo as "tipo!",
+                tipo::TEXT as "tipo!",
                 proveedor,
                 descripcion,
                 icono,
@@ -428,7 +428,7 @@ impl CheckoutRepository {
                 user_agent,
                 fecha_pago as "fecha_pago: chrono::DateTime<chrono::Utc>",
                 fecha_creacion as "fecha_creacion!: chrono::DateTime<chrono::Utc>",
-                fecha_actualizacion,
+                fecha_actualizacion as "fecha_actualizacion: chrono::DateTime<chrono::Utc>",
                 nota_error,
                 intentos_fallidos as "intentos_fallidos!"
             "#,
@@ -465,7 +465,7 @@ impl CheckoutRepository {
             user_agent: pago.user_agent,
             fecha_pago: pago.fecha_pago.map(|dt| dt.naive_utc()),
             fecha_creacion: Some(pago.fecha_creacion.naive_utc()),
-            fecha_actualizacion: pago.fecha_actualizacion.map(|dt| dt.to_naive_datetime()),
+            fecha_actualizacion: pago.fecha_actualizacion.map(|dt| dt.naive_utc()),
             nota_error: pago.nota_error,
             intentos_fallidos: Some(pago.intentos_fallidos),
         })
@@ -733,11 +733,11 @@ impl CheckoutRepository {
                 usos_actuales,
                 solo_nuevos_usuarios,
                 solo_primera_compra,
-                fecha_inicio,
-                fecha_fin,
+                fecha_inicio as "fecha_inicio!: chrono::NaiveDateTime",
+                fecha_fin as "fecha_fin!: chrono::NaiveDateTime",
                 activo,
-                fecha_creacion,
-                fecha_actualizacion
+                fecha_creacion as "fecha_creacion!: chrono::NaiveDateTime",
+                fecha_actualizacion as "fecha_actualizacion?: chrono::NaiveDateTime"
             FROM cupon
             WHERE UPPER(codigo) = UPPER($1)
               AND activo = true
@@ -798,7 +798,7 @@ impl CheckoutRepository {
             let es_nuevo = sqlx::query!(
                 r#"
                 SELECT
-                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha_registro)) / 86400 as dias
+                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - fecha_registro)) / 86400 as "dias!: rust_decimal::Decimal"
                 FROM usuario
                 WHERE id_usuario = $1
                 "#,
@@ -808,10 +808,10 @@ impl CheckoutRepository {
             .await
             .map_err(|e| format!("Error al verificar antigüedad del usuario: {}", e))?;
 
-            if let Some(dias) = es_nuevo.dias {
-                if dias > 7.0 {
-                    return Err("Este cupón es solo para nuevos usuarios (registrados hace menos de 7 días)".to_string());
-                }
+            use std::str::FromStr;
+            let siete_dias = Decimal::from_str("7.0").unwrap();
+            if es_nuevo.dias > siete_dias {
+                return Err("Este cupón es solo para nuevos usuarios (registrados hace menos de 7 días)".to_string());
             }
         }
 

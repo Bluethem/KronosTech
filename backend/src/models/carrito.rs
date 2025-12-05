@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
+use time::PrimitiveDateTime;
 
 // ==================== MODELO PRINCIPAL ====================
 
@@ -9,9 +9,9 @@ pub struct Carrito {
     pub id_usuario: Option<i32>,
     pub id_sesion: Option<String>,
     pub estado: String, // 'activo', 'convertido', 'abandonado', 'expirado'
-    pub fecha_expiracion: Option<DateTime<Utc>>,
-    pub fecha_creacion: DateTime<Utc>,
-    pub fecha_actualizacion: DateTime<Utc>,
+    pub fecha_expiracion: Option<PrimitiveDateTime>,
+    pub fecha_creacion: PrimitiveDateTime,
+    pub fecha_actualizacion: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -21,8 +21,8 @@ pub struct CarritoDetalle {
     pub id_producto_detalle: i32,
     pub cantidad: i32,
     pub precio_unitario: rust_decimal::Decimal,
-    pub fecha_agregado: DateTime<Utc>,
-    pub fecha_actualizacion: DateTime<Utc>,
+    pub fecha_agregado: PrimitiveDateTime,
+    pub fecha_actualizacion: PrimitiveDateTime,
 }
 
 // ==================== DTOs DE RESPUESTA ====================
@@ -34,7 +34,7 @@ pub struct CarritoResponse {
     pub items: Vec<CarritoItemResponse>,
     pub total_items: i32,
     pub subtotal: rust_decimal::Decimal,
-    pub fecha_actualizacion: DateTime<Utc>,
+    pub fecha_actualizacion: PrimitiveDateTime,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -6,13 +6,30 @@
 -- ============================================================================
 -- 1. USUARIOS
 -- ============================================================================
+--
+-- CREDENCIALES DE PRUEBA (Las contraseñas están hasheadas con bcrypt):
+--
+-- | Email                          | Contraseña | Rol          |
+-- |--------------------------------|------------|--------------|
+-- | admin@kronostech.pe            | admin123   | super_admin  |
+-- | maria.lopez@kronostech.pe      | maria123   | administrador|
+-- | juan.perez@gmail.com           | juan123    | cliente      |
+-- | ana.garcia@outlook.com         | ana123     | cliente      |
+-- | pedro.martinez@hotmail.com     | pedro123   | cliente      |
+--
+-- ============================================================================
 
 INSERT INTO usuario (nombre, apellido, email, contrasena, telefono, dni, rol, email_verificado, activo) VALUES
-('Carlos', 'Ramirez', 'admin@kronostech.pe', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lBk8RdP4.kK2', '987654321', '12345678', 'super_admin', TRUE, TRUE),
-('Maria', 'Lopez', 'maria.lopez@kronostech.pe', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lBk8RdP4.kK2', '987654322', '23456789', 'administrador', TRUE, TRUE),
-('Juan', 'Pérez', 'juan.perez@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lBk8RdP4.kK2', '987654324', '45678901', 'cliente', TRUE, TRUE),
-('Ana', 'García', 'ana.garcia@outlook.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lBk8RdP4.kK2', '987654325', '56789012', 'cliente', TRUE, TRUE),
-('Pedro', 'Martínez', 'pedro.martinez@hotmail.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lBk8RdP4.kK2', '987654326', '67890123', 'cliente', TRUE, TRUE);
+-- Contraseña: admin123
+('Carlos', 'Ramirez', 'admin@kronostech.pe', '$2b$12$vmVSHJ0ULIo44CkKg1J9V.WCg7MggsvonGmqmCFNfKM3siORkMsZu', '987654321', '12345678', 'super_admin', TRUE, TRUE),
+-- Contraseña: maria123
+('Maria', 'Lopez', 'maria.lopez@kronostech.pe', '$2b$12$VOWveI/2YEPg0lVR3b0tVOBoL4.5pEedN3mVuvc4IsGXqLuxl6rmy', '987654322', '23456789', 'administrador', TRUE, TRUE),
+-- Contraseña: juan123
+('Juan', 'Pérez', 'juan.perez@gmail.com', '$2b$12$WwspyHspjLCe3z4/d.Tapu1AP7yCD7d6rvr1kjSHBurl2HHXAks7K', '987654324', '45678901', 'cliente', TRUE, TRUE),
+-- Contraseña: ana123
+('Ana', 'García', 'ana.garcia@outlook.com', '$2b$12$MEYGAGiB/H7Vb5bD8ug9meAJAfsPbGFfcv1sf55IkoASdvIUvkc3i', '987654325', '56789012', 'cliente', TRUE, TRUE),
+-- Contraseña: pedro123
+('Pedro', 'Martínez', 'pedro.martinez@hotmail.com', '$2b$12$26vnJXmFtZWSIfGAnLZM8OVV6GhKmYQaHw1hwLOdZgPR3UrWHkzVm', '987654326', '67890123', 'cliente', TRUE, TRUE);
 
 INSERT INTO administrador (id_usuario, es_super_admin, permisos) VALUES
 (1, TRUE, '{"productos": true, "ventas": true, "usuarios": true, "reportes": true}'),

@@ -1,12 +1,13 @@
 use axum::{
     extract::{Query, State, Path},
-    http::StatusCode,
+    http::{StatusCode, HeaderMap},
     Json,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use chrono::{NaiveDateTime, Datelike};
 use rust_decimal::Decimal;
+use crate::services::AuthService;
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ReembolsoWithDetails {
@@ -29,6 +30,50 @@ pub struct ReembolsoQuery {
     pub page: Option<i64>,
     pub limit: Option<i64>,
 }
+
+// ==================== HELPER FUNCTIONS ====================
+
+#[derive(Debug, serde::Serialize)]
+pub struct ErrorResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+fn extract_user_id(headers: &HeaderMap) -> Result<i32, (StatusCode, Json<ErrorResponse>)> {
+    let token = headers
+        .get("Authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            if value.starts_with("Bearer ") {
+                Some(&value[7..])
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    success: false,
+                    message: "Token no proporcionado".to_string(),
+                }),
+            )
+        })?;
+
+    let claims = AuthService::verify_token(token).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                success: false,
+                message: "Token inválido o expirado".to_string(),
+            }),
+        )
+    })?;
+
+    Ok(claims.sub)
+}
+
+// ==================== HANDLERS ====================
 
 pub async fn get_reembolsos(
     State(pool): State<PgPool>,
@@ -358,4 +403,235 @@ pub async fn procesar_reembolso(
     }
 
     Ok(StatusCode::OK)
+}
+
+// ==================== CLIENTE: SOLICITAR REEMBOLSO ====================
+
+#[derive(Debug, Deserialize)]
+pub struct SolicitarReembolsoRequest {
+    pub id_venta: i32,
+    pub tipo_reembolso: String, // "total" o "parcial"
+    pub monto_reembolsado: Decimal,
+    pub motivo: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SolicitarReembolsoResponse {
+    pub success: bool,
+    pub message: String,
+    pub id_reembolso: Option<i32>,
+}
+
+pub async fn solicitar_reembolso(
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+    Json(payload): Json<SolicitarReembolsoRequest>,
+) -> Result<Json<SolicitarReembolsoResponse>, (StatusCode, Json<SolicitarReembolsoResponse>)> {
+    // Extraer ID de usuario del token JWT
+    let id_usuario_autenticado = match extract_user_id(&headers) {
+        Ok(id) => id,
+        Err((status, Json(err))) => {
+            return Err((
+                status,
+                Json(SolicitarReembolsoResponse {
+                    success: false,
+                    message: err.message,
+                    id_reembolso: None,
+                }),
+            ));
+        }
+    };
+
+    // Validar tipo de reembolso
+    if payload.tipo_reembolso != "total" && payload.tipo_reembolso != "parcial" {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(SolicitarReembolsoResponse {
+                success: false,
+                message: "Tipo de reembolso inválido. Debe ser 'total' o 'parcial'".to_string(),
+                id_reembolso: None,
+            }),
+        ));
+    }
+
+    // Validar que el monto sea positivo
+    if payload.monto_reembolsado <= Decimal::ZERO {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(SolicitarReembolsoResponse {
+                success: false,
+                message: "El monto debe ser mayor a 0".to_string(),
+                id_reembolso: None,
+            }),
+        ));
+    }
+
+    // Obtener información de la venta y verificar que existe
+    let venta: Result<(i32, Decimal, i32), _> = sqlx::query_as(
+        r#"
+        SELECT v.id_usuario, v.total, p.id_pago
+        FROM venta v
+        LEFT JOIN pago p ON p.id_venta = v.id_venta
+        WHERE v.id_venta = $1
+        LIMIT 1
+        "#,
+    )
+    .bind(payload.id_venta)
+    .fetch_one(&pool)
+    .await;
+
+    let (id_usuario_venta, total_venta, id_pago) = match venta {
+        Ok(data) => data,
+        Err(_) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(SolicitarReembolsoResponse {
+                    success: false,
+                    message: "Pedido no encontrado".to_string(),
+                    id_reembolso: None,
+                }),
+            ));
+        }
+    };
+
+    // Validar que el pedido pertenezca al usuario autenticado
+    if id_usuario_venta != id_usuario_autenticado {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(SolicitarReembolsoResponse {
+                success: false,
+                message: "No tienes permiso para solicitar reembolso de este pedido".to_string(),
+                id_reembolso: None,
+            }),
+        ));
+    }
+
+    // Validar que el monto no exceda el total de la venta
+    if payload.monto_reembolsado > total_venta {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(SolicitarReembolsoResponse {
+                success: false,
+                message: format!(
+                    "El monto solicitado (S/. {}) excede el total del pedido (S/. {})",
+                    payload.monto_reembolsado, total_venta
+                ),
+                id_reembolso: None,
+            }),
+        ));
+    }
+
+    // Verificar que no exista ya un reembolso solicitado para esta venta
+    let existing: Result<(i64,), _> = sqlx::query_as(
+        r#"
+        SELECT COUNT(*)
+        FROM reembolso
+        WHERE id_venta = $1 AND estado IN ('solicitado', 'procesando', 'completado')
+        "#,
+    )
+    .bind(payload.id_venta)
+    .fetch_one(&pool)
+    .await;
+
+    if let Ok((count,)) = existing {
+        if count > 0 {
+            return Err((
+                StatusCode::CONFLICT,
+                Json(SolicitarReembolsoResponse {
+                    success: false,
+                    message: "Ya existe una solicitud de reembolso activa para este pedido".to_string(),
+                    id_reembolso: None,
+                }),
+            ));
+        }
+    }
+
+    // Crear la solicitud de reembolso
+    let result: Result<(i32,), _> = sqlx::query_as(
+        r#"
+        INSERT INTO reembolso (
+            id_pago,
+            id_venta,
+            tipo_reembolso,
+            monto_reembolsado,
+            motivo,
+            estado,
+            id_usuario_solicitante,
+            fecha_solicitado
+        ) VALUES ($1, $2, $3, $4, $5, 'solicitado', $6, CURRENT_TIMESTAMP)
+        RETURNING id_reembolso
+        "#,
+    )
+    .bind(id_pago)
+    .bind(payload.id_venta)
+    .bind(&payload.tipo_reembolso)
+    .bind(payload.monto_reembolsado)
+    .bind(&payload.motivo)
+    .bind(id_usuario_autenticado)
+    .fetch_one(&pool)
+    .await;
+
+    match result {
+        Ok((id_reembolso,)) => Ok(Json(SolicitarReembolsoResponse {
+            success: true,
+            message: "Solicitud de reembolso creada exitosamente".to_string(),
+            id_reembolso: Some(id_reembolso),
+        })),
+        Err(e) => {
+            eprintln!("Error creating reembolso: {:?}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(SolicitarReembolsoResponse {
+                    success: false,
+                    message: "Error al crear la solicitud de reembolso".to_string(),
+                    id_reembolso: None,
+                }),
+            ))
+        }
+    }
+}
+
+// ==================== CLIENTE: LISTAR MIS REEMBOLSOS ====================
+
+pub async fn get_mis_reembolsos(
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ReembolsoWithDetails>>, (StatusCode, Json<ErrorResponse>)> {
+    // Extraer id_usuario del JWT token
+    let id_usuario = extract_user_id(&headers)?;
+
+    let reembolsos = sqlx::query_as::<_, ReembolsoWithDetails>(
+        r#"
+        SELECT
+            r.id_reembolso,
+            v.numero_pedido,
+            r.id_venta,
+            u.nombre as nombre_cliente,
+            u.email as email_cliente,
+            r.tipo_reembolso,
+            r.monto_reembolsado,
+            r.estado::text,
+            r.fecha_solicitado
+        FROM reembolso r
+        JOIN venta v ON r.id_venta = v.id_venta
+        JOIN usuario u ON v.id_usuario = u.id_usuario
+        WHERE v.id_usuario = $1
+        ORDER BY r.fecha_solicitado DESC
+        "#,
+    )
+    .bind(id_usuario)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching reembolsos: {:?}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                success: false,
+                message: "Error al obtener reembolsos".to_string(),
+            }),
+        )
+    })?;
+
+    Ok(Json(reembolsos))
 }

@@ -178,4 +178,138 @@ impl AuthService {
     fn is_valid_email(email: &str) -> bool {
         email.contains('@') && email.contains('.') && email.len() > 5
     }
+
+    // Actualizar perfil de usuario
+    pub async fn actualizar_perfil(
+        pool: &PgPool,
+        token: &str,
+        request: crate::handlers::auth_handler::ActualizarPerfilRequest,
+    ) -> Result<UsuarioResponse, String> {
+        let claims = Self::verify_token(token)?;
+
+        // Actualizar solo los campos proporcionados
+        let mut query = String::from("UPDATE usuario SET ");
+        let mut updates = Vec::new();
+        let mut params: Vec<String> = Vec::new();
+        let mut param_count = 1;
+
+        if let Some(nombre) = &request.nombre {
+            updates.push(format!("nombre = ${}", param_count));
+            params.push(nombre.clone());
+            param_count += 1;
+        }
+
+        if let Some(apellido) = &request.apellido {
+            updates.push(format!("apellido = ${}", param_count));
+            params.push(apellido.clone());
+            param_count += 1;
+        }
+
+        if let Some(telefono) = &request.telefono {
+            updates.push(format!("telefono = ${}", param_count));
+            params.push(telefono.clone());
+            param_count += 1;
+        }
+
+        if let Some(dni) = &request.dni {
+            updates.push(format!("dni = ${}", param_count));
+            params.push(dni.clone());
+            param_count += 1;
+        }
+
+        if updates.is_empty() {
+            return Err("No se proporcionaron campos para actualizar".to_string());
+        }
+
+        query.push_str(&updates.join(", "));
+        query.push_str(&format!(" WHERE id_usuario = {} RETURNING *", claims.sub));
+
+        // Por simplicidad, usamos el repository find_by_id después de actualizar
+        // En producción, harías la query dinámica completa
+        if let Some(nombre) = request.nombre {
+            sqlx::query("UPDATE usuario SET nombre = $1 WHERE id_usuario = $2")
+                .bind(&nombre)
+                .bind(claims.sub)
+                .execute(pool)
+                .await
+                .map_err(|e| format!("Error al actualizar: {}", e))?;
+        }
+
+        if let Some(apellido) = request.apellido {
+            sqlx::query("UPDATE usuario SET apellido = $1 WHERE id_usuario = $2")
+                .bind(&apellido)
+                .bind(claims.sub)
+                .execute(pool)
+                .await
+                .map_err(|e| format!("Error al actualizar: {}", e))?;
+        }
+
+        if let Some(telefono) = request.telefono {
+            sqlx::query("UPDATE usuario SET telefono = $1 WHERE id_usuario = $2")
+                .bind(&telefono)
+                .bind(claims.sub)
+                .execute(pool)
+                .await
+                .map_err(|e| format!("Error al actualizar: {}", e))?;
+        }
+
+        if let Some(dni) = request.dni {
+            sqlx::query("UPDATE usuario SET dni = $1 WHERE id_usuario = $2")
+                .bind(&dni)
+                .bind(claims.sub)
+                .execute(pool)
+                .await
+                .map_err(|e| format!("Error al actualizar: {}", e))?;
+        }
+
+        // Obtener usuario actualizado
+        let usuario = AuthRepository::find_by_id(pool, claims.sub)
+            .await
+            .map_err(|e| format!("Error al buscar usuario: {}", e))?
+            .ok_or("Usuario no encontrado".to_string())?;
+
+        Ok(UsuarioResponse::from(usuario))
+    }
+
+    // Cambiar contraseña
+    pub async fn cambiar_password(
+        pool: &PgPool,
+        token: &str,
+        request: crate::handlers::auth_handler::CambiarPasswordRequest,
+    ) -> Result<(), String> {
+        let claims = Self::verify_token(token)?;
+
+        // Validar nueva contraseña
+        if request.password_nuevo.len() < 6 {
+            return Err("La nueva contraseña debe tener al menos 6 caracteres".to_string());
+        }
+
+        // Obtener usuario actual
+        let usuario = AuthRepository::find_by_id(pool, claims.sub)
+            .await
+            .map_err(|e| format!("Error al buscar usuario: {}", e))?
+            .ok_or("Usuario no encontrado".to_string())?;
+
+        // Verificar contraseña actual
+        let password_match = verify(&request.password_actual, &usuario.contrasena)
+            .map_err(|e| format!("Error al verificar contraseña: {}", e))?;
+
+        if !password_match {
+            return Err("La contraseña actual es incorrecta".to_string());
+        }
+
+        // Hash de la nueva contraseña
+        let password_hash = hash(&request.password_nuevo, DEFAULT_COST)
+            .map_err(|e| format!("Error al encriptar contraseña: {}", e))?;
+
+        // Actualizar contraseña
+        sqlx::query("UPDATE usuario SET contrasena = $1 WHERE id_usuario = $2")
+            .bind(&password_hash)
+            .bind(claims.sub)
+            .execute(pool)
+            .await
+            .map_err(|e| format!("Error al actualizar contraseña: {}", e))?;
+
+        Ok(())
+    }
 }
