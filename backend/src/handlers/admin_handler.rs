@@ -134,7 +134,7 @@ pub async fn listar_usuarios_handler(
     let offset = query.offset.unwrap_or(0);
 
     let mut sql = String::from(
-        "SELECT id_usuario, nombre, apellido, email, rol, activo, email_verificado,
+        "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
          telefono, dni, fecha_registro, ultima_conexion
          FROM usuario WHERE 1=1"
     );
@@ -216,7 +216,7 @@ pub async fn actualizar_usuario_admin_handler(
                 }),
             ));
         }
-        updates.push(format!("rol = '{}'", rol));
+        updates.push(format!("rol = '{}'::rol_usuario", rol));
     }
 
     if let Some(activo) = payload.activo {
@@ -238,7 +238,7 @@ pub async fn actualizar_usuario_admin_handler(
     }
 
     let sql = format!(
-        "UPDATE usuario SET {} WHERE id_usuario = {} RETURNING id_usuario, nombre, apellido, email, rol, activo, email_verificado, telefono, dni, fecha_registro, ultima_conexion",
+        "UPDATE usuario SET {} WHERE id_usuario = {} RETURNING id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado, telefono, dni, fecha_registro, ultima_conexion",
         updates.join(", "),
         id_usuario
     );
@@ -348,8 +348,8 @@ pub async fn crear_administrador_handler(
     // Crear usuario
     match sqlx::query_as::<_, UsuarioAdmin>(
         "INSERT INTO usuario (nombre, apellido, email, contrasena, rol, activo, email_verificado)
-         VALUES ($1, $2, $3, $4, $5, true, true)
-         RETURNING id_usuario, nombre, apellido, email, rol, activo, email_verificado, telefono, dni, fecha_registro, ultima_conexion"
+         VALUES ($1, $2, $3, $4, $5::rol_usuario, true, true)
+         RETURNING id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado, telefono, dni, fecha_registro, ultima_conexion"
     )
     .bind(&payload.nombre)
     .bind(&payload.apellido)

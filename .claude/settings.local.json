@@ -10,7 +10,8 @@
       "Bash(systemctl status:*)",
       "Bash(psql:*)",
       "Bash(sudo service postgresql start:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cargo check:*)"
     ],
     "deny": [],
     "ask": []
