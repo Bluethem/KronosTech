@@ -17,3 +17,4 @@ tower-http = { version = "0.6.6", features = ["fs", "cors"] }
 uuid = { version = "1.18.1", features = ["v4", "serde"] }
 rust_decimal = { version = "1.33", features = ["serde-float"] }
 chrono = { version = "0.4", features = ["serde"] }
+time = { version = "0.3", features = ["serde", "serde-human-readable", "macros", "formatting", "parsing"] }

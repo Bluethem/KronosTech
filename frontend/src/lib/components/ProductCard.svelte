@@ -1,14 +1,45 @@
 <script lang="ts">
   import type { Producto } from '$lib/services/api';
   import { ShoppingCart } from 'lucide-svelte';
+  import { cartService } from '$lib/services/cart';
+  import { isAuthenticated } from '$lib/stores/auth';
+  import { goto } from '$app/navigation';
 
   export let producto: Producto;
-  
+
   const imagenPlaceholder = 'https://placehold.co/400x300/1e293b/94a3b8?text=Producto';
-  
-  $: descuento = producto.descuento_porcentaje 
+
+  let isAdding = false;
+
+  $: descuento = producto.descuento_porcentaje
     ? Math.round(((producto.precio_base - producto.precio_venta) / producto.precio_base) * 100)
     : null;
+
+  async function handleAddToCart(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Verificar si está autenticado
+    if (!$isAuthenticated) {
+      await goto('/login?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+
+    if (isAdding || producto.stock_disponible === 0) return;
+
+    isAdding = true;
+    try {
+      await cartService.addItem({
+        id_producto_detalle: producto.id_producto_detalle,
+        cantidad: 1
+      });
+      // Redirigir al carrito sin mostrar alert
+      await goto('/carrito');
+    } catch (error: any) {
+      alert(error.message || 'Error al agregar al carrito');
+      isAdding = false;
+    }
+  }
 </script>
 
 <a 
@@ -71,16 +102,21 @@
       </div>
     </div>
 
-    <button 
-      class="flex w-full min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/20 dark:bg-primary/30 text-primary text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary hover:text-white transition-colors gap-2"
-      disabled={producto.stock_disponible === 0}
-      on:click|preventDefault={(e) => {
-        e.stopPropagation();
-        console.log('Agregar al carrito:', producto.nombre);
-      }}
+    <button
+      class="flex w-full min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/20 dark:bg-primary/30 text-primary text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary hover:text-white transition-colors gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={producto.stock_disponible === 0 || isAdding}
+      on:click={handleAddToCart}
     >
       <ShoppingCart size={18} />
-      <span class="truncate">{producto.stock_disponible === 0 ? 'Agotado' : 'Agregar al Carrito'}</span>
+      <span class="truncate">
+        {#if isAdding}
+          Agregando...
+        {:else if producto.stock_disponible === 0}
+          Agotado
+        {:else}
+          Añadir
+        {/if}
+      </span>
     </button>
   </div>
 </a>

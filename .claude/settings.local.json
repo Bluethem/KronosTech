@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(grep:*)",
+      "Bash(SQLX_OFFLINE=true cargo check:*)",
+      "Bash(cd:*)",
+      "Bash(npm run check:*)",
+      "Bash(test:*)",
+      "Bash(systemctl status:*)",
+      "Bash(psql:*)",
+      "Bash(sudo service postgresql start:*)",
+      "Bash(ls:*)",
+      "Bash(cargo check:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
