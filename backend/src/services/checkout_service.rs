@@ -4,7 +4,7 @@ use crate::models::{
     VentaResponse, DetalleVentaResponse, ProcesarCheckoutRequest,
     CalcularTotalResponse, MetodoPagoResponse, EstadoPedido, EstadoPago,
 };
-use crate::repositories::{CheckoutRepository, DireccionRepository, CarritoRepository};
+use crate::repositories::{CheckoutRepository, DireccionRepository, CarritoRepository, MetodoPagoClienteRepository};
 
 pub struct CheckoutService;
 
@@ -133,6 +133,32 @@ impl CheckoutService {
             .await
             .map_err(|e| format!("Error al buscar método de pago: {}", e))?
             .ok_or("Método de pago no encontrado o inactivo")?;
+
+        // 2.b Validar método de pago del cliente (tarjeta guardada) si se envía
+        let metodo_pago_cliente_opt = if let Some(id_mpc) = request.id_metodo_pago_cliente {
+            // Verificar que el método de pago pertenece al usuario
+            let belongs = MetodoPagoClienteRepository::belongs_to_user(pool, id_mpc, id_usuario)
+                .await
+                .map_err(|e| format!("Error al verificar método de pago del cliente: {}", e))?;
+
+            if !belongs {
+                return Err("El método de pago seleccionado no pertenece al usuario".to_string());
+            }
+
+            // Cargar datos del método de pago del cliente para snapshot
+            let metodos_usuario = MetodoPagoClienteRepository::get_by_user(pool, id_usuario)
+                .await
+                .map_err(|e| format!("Error al obtener métodos de pago del usuario: {}", e))?;
+
+            let metodo_cliente = metodos_usuario
+                .into_iter()
+                .find(|m| m.id_metodo_pago_cliente == id_mpc)
+                .ok_or_else(|| "Método de pago del cliente no encontrado".to_string())?;
+
+            Some(metodo_cliente)
+        } else {
+            None
+        };
 
         // 3. Obtener carrito activo
         let carrito = CarritoRepository::get_or_create_carrito_usuario(pool, id_usuario)
@@ -277,8 +303,10 @@ impl CheckoutService {
             &mut tx,
             venta.id_venta,
             request.id_metodo_pago,
+            request.id_metodo_pago_cliente,
             total,
             comision,
+            metodo_pago_cliente_opt.as_ref(),
             ip_cliente,
             user_agent,
         )
@@ -327,6 +355,21 @@ impl CheckoutService {
         venta_response.items = detalles_response;
         venta_response.estado = "confirmado".to_string();
         venta_response.estado_pago = "completado".to_string();
+
+        // Si el método de pago es Yape o Plin, incluir info de pago para que el frontend pueda generar el QR
+        let tipo_metodo = metodo_pago.tipo.to_lowercase();
+        if tipo_metodo == "yape" || tipo_metodo == "plin" {
+            use serde_json::json;
+            venta_response.info_pago = Some(json!({
+                "tipo": tipo_metodo,
+                "monto": total,
+                "moneda": "PEN",
+                // Este es el payload que el frontend puede usar para generar el QR.
+                // Por ahora es un texto estándar, en una integración real aquí iría
+                // el código de pago generado por Yape/Plin o una URL.
+                "qr_data": format!("{}|{}", tipo_metodo, total),
+            }));
+        }
 
         Ok(venta_response)
     }

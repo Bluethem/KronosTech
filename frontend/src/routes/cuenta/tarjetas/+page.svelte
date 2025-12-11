@@ -114,13 +114,14 @@
 
 		// Validar formato MM/YY
 		const expRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
-		if (!expRegex.test(formData.fecha_expiracion)) {
+		const fechaExpStr = formData.fecha_expiracion.trim();
+		if (!expRegex.test(fechaExpStr)) {
 			error = 'La fecha de expiración debe tener formato MM/YY';
 			return;
 		}
 
 		// Validar que la tarjeta no esté vencida
-		const [mes, anio] = formData.fecha_expiracion.split('/');
+		const [mes, anio] = fechaExpStr.split('/');
 		const fechaExp = new Date(2000 + parseInt(anio), parseInt(mes) - 1);
 		const ahora = new Date();
 		if (fechaExp < ahora) {
@@ -139,7 +140,7 @@
 			if (modalMode === 'crear') {
 				const request: CrearMetodoPagoRequest = {
 					id_metodo_pago: formData.id_metodo_pago,
-					tipo: formData.tipo,
+					tipo: mapTipoMetodoPago(formData.tipo),
 					token_pago: formData.token_pago.trim() || undefined,
 					ultimos_4_digitos: formData.ultimos_4_digitos.trim(),
 					marca: formData.marca.trim(),
@@ -224,6 +225,34 @@
 			year: 'numeric',
 			month: 'long'
 		});
+	}
+
+	function mapTipoMetodoPago(tipo: string): string {
+		if (tipo === 'credito') return 'tarjeta_credito';
+		if (tipo === 'debito') return 'tarjeta_debito';
+		return tipo;
+	}
+
+	function handleUltimos4Input(event: Event) {
+		const target = event.target as HTMLInputElement;
+		// Permitir solo números y máximo 4 dígitos
+		const soloNumeros = target.value.replace(/\D/g, '').slice(0, 4);
+		formData.ultimos_4_digitos = soloNumeros;
+	}
+
+	function handleFechaExpiracionInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		// Mantener solo dígitos y máximo 4 caracteres (MMYY)
+		let soloNumeros = target.value.replace(/\D/g, '').slice(0, 4);
+
+		// Construir formato MM/YY mientras el usuario escribe
+		if (soloNumeros.length >= 3) {
+			const mm = soloNumeros.slice(0, 2);
+			const yy = soloNumeros.slice(2);
+			formData.fecha_expiracion = `${mm}/${yy}`;
+		} else {
+			formData.fecha_expiracion = soloNumeros;
+		}
 	}
 </script>
 
@@ -430,7 +459,8 @@
 						class="form-input w-full"
 						placeholder="1234"
 						maxlength="4"
-						pattern="[0-9]{4}"
+						inputmode="numeric"
+						on:input={handleUltimos4Input}
 						required
 						disabled={loading}
 					/>
@@ -450,7 +480,8 @@
 						class="form-input w-full"
 						placeholder="MM/YY"
 						maxlength="5"
-						pattern="(0[1-9]|1[0-2])\/\d{2}"
+						inputmode="numeric"
+						on:input={handleFechaExpiracionInput}
 						required
 						disabled={loading}
 					/>

@@ -1,5 +1,5 @@
 use axum::{
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sqlx::PgPool;
@@ -19,7 +19,7 @@ pub fn catalogo_routes(pool: PgPool) -> Router {
         .route("/productos", get(get_productos))
         .route("/productos/slug/{slug}", get(get_producto_by_slug))
         .route("/productos/{id}", get(get_producto_by_id))
-        .route("/productos/{id}/valoraciones", get(get_valoraciones))
+        .route("/productos/{id}/valoraciones", get(get_valoraciones).post(crear_valoracion))
         
         .with_state(pool)
 }

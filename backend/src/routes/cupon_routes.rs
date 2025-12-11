@@ -6,6 +6,7 @@ use crate::handlers::cupon_handler;
 pub fn cupon_routes(pool: PgPool) -> Router {
     Router::new()
         .route("/cupones", get(cupon_handler::get_cupones).post(cupon_handler::create_cupon))
+        .route("/cupones/mis", get(cupon_handler::get_mis_cupones))
         .route("/cupones/stats", get(cupon_handler::get_cupon_stats))
         .route("/cupones/{id}", get(cupon_handler::get_cupon_detalle).put(cupon_handler::update_cupon).delete(cupon_handler::delete_cupon))
         .route("/cupones/{id}/usuarios", get(cupon_handler::get_assigned_users))

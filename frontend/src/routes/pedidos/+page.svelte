@@ -38,20 +38,20 @@
 	function getEstadoBadgeClass(estado: string): string {
 		switch (estado) {
 			case 'pendiente':
-				return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/50';
+				return 'bg-yellow-500 text-yellow-200 border-yellow-500';
 			case 'confirmado':
-				return 'bg-blue-500/20 text-blue-200 border-blue-500/50';
+				return 'bg-blue-500 text-blue-200 border-blue-500';
 			case 'procesando':
-				return 'bg-purple-500/20 text-purple-200 border-purple-500/50';
+				return 'bg-purple-500 text-purple-200 border-purple-500';
 			case 'enviado':
-				return 'bg-indigo-500/20 text-indigo-200 border-indigo-500/50';
+				return 'bg-indigo-500 text-indigo-200 border-indigo-500';
 			case 'entregado':
-				return 'bg-green-500/20 text-green-200 border-green-500/50';
+				return 'bg-green-500 text-green-200 border-green-500';
 			case 'cancelado':
 			case 'devuelto':
-				return 'bg-red-500/20 text-red-200 border-red-500/50';
+				return 'bg-red-500 text-red-200 border-red-500';
 			default:
-				return 'bg-slate-500/20 text-slate-200 border-slate-500/50';
+				return 'bg-slate-500 text-slate-200 border-slate-500';
 		}
 	}
 
@@ -86,22 +86,21 @@
 <svelte:head>
 	<title>Mis Pedidos | KronosTech</title>
 </svelte:head>
-
-<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-white via-slate-50 to-white text-slate-900">
 	<div class="max-w-6xl mx-auto px-4 lg:px-0 py-8 space-y-6">
 		<!-- Header -->
 		<div class="space-y-4">
 			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 				<div>
 					<h1 class="text-3xl font-bold tracking-tight">Mis Pedidos</h1>
-					<p class="text-sm text-slate-400 mt-1">
+					<p class="text-sm text-slate-600 mt-1">
 						Historial completo de tus compras
 					</p>
 				</div>
 
 				<button
 					type="button"
-					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
 					on:click={goToCatalog}
 				>
 					Ir al catálogo
@@ -114,7 +113,7 @@
 					class={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
 						filtroEstado === 'todos'
 							? 'bg-blue-500 text-white'
-							: 'border border-white/10 bg-white/5 hover:bg-white/10'
+							: 'border border-slate-200 bg-white hover:bg-slate-50'
 					}`}
 					on:click={() => (filtroEstado = 'todos')}
 				>
@@ -124,7 +123,7 @@
 					class={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
 						filtroEstado === 'pendiente'
 							? 'bg-blue-500 text-white'
-							: 'border border-white/10 bg-white/5 hover:bg-white/10'
+							: 'border border-slate-200 bg-white hover:bg-slate-50'
 					}`}
 					on:click={() => (filtroEstado = 'pendiente')}
 				>
@@ -134,7 +133,7 @@
 					class={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
 						filtroEstado === 'procesando'
 							? 'bg-blue-500 text-white'
-							: 'border border-white/10 bg-white/5 hover:bg-white/10'
+							: 'border border-slate-200 bg-white hover:bg-slate-50'
 					}`}
 					on:click={() => (filtroEstado = 'procesando')}
 				>
@@ -144,7 +143,7 @@
 					class={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
 						filtroEstado === 'enviado'
 							? 'bg-blue-500 text-white'
-							: 'border border-white/10 bg-white/5 hover:bg-white/10'
+							: 'border border-slate-200 bg-white hover:bg-slate-50'
 					}`}
 					on:click={() => (filtroEstado = 'enviado')}
 				>
@@ -154,7 +153,7 @@
 					class={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
 						filtroEstado === 'entregado'
 							? 'bg-blue-500 text-white'
-							: 'border border-white/10 bg-white/5 hover:bg-white/10'
+							: 'border border-slate-200 bg-white hover:bg-slate-50'
 					}`}
 					on:click={() => (filtroEstado = 'entregado')}
 				>
@@ -164,12 +163,12 @@
 		</div>
 
 		{#if loading}
-			<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 text-center">
-				<p class="text-slate-400">Cargando pedidos...</p>
+			<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-8 text-center shadow-sm">
+				<p class="text-slate-600">Cargando pedidos...</p>
 			</div>
 		{:else if error}
-			<div class="rounded-3xl border border-rose-500/40 bg-rose-500/10 backdrop-blur-xl p-8 text-center space-y-4">
-				<p class="text-rose-100 text-lg">{error}</p>
+			<div class="rounded-3xl border border-rose-300 bg-rose-50 backdrop-blur-xl p-8 text-center space-y-4 shadow-sm">
+				<p class="text-rose-900 text-lg">{error}</p>
 				<button
 					type="button"
 					class="px-6 py-3 rounded-2xl text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-colors"
@@ -179,11 +178,11 @@
 				</button>
 			</div>
 		{:else if pedidosFiltrados.length === 0}
-			<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 text-center space-y-4">
-				<svg class="w-16 h-16 mx-auto text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-8 text-center space-y-4 shadow-sm">
+				<svg class="w-16 h-16 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
 				</svg>
-				<p class="text-slate-300 text-lg">
+				<p class="text-slate-700 text-lg">
 					{filtroEstado === 'todos' ? 'No tienes pedidos aún' : `No tienes pedidos ${filtroEstado}`}
 				</p>
 				<button
@@ -197,7 +196,7 @@
 		{:else}
 			<div class="space-y-4">
 				{#each pedidosFiltrados as pedido}
-					<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] hover:border-white/20 transition-all">
+					<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg hover:border-slate-300 hover:shadow-xl transition-all">
 						<div class="p-6">
 							<!-- Order Header -->
 							<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
@@ -208,19 +207,19 @@
 											{getEstadoLabel(pedido.estado)}
 										</span>
 									</div>
-									<p class="text-xs text-slate-400">
+									<p class="text-xs text-slate-600">
 										Pedido el {formatDate(pedido.fecha_pedido)}
 									</p>
 								</div>
 
 								<div class="flex items-center gap-3">
 									<div class="text-right">
-										<p class="text-xs text-slate-400 mb-1">Total</p>
+										<p class="text-xs text-slate-600 mb-1">Total</p>
 										<p class="text-xl font-bold">S/. {pedido.total.toFixed(2)}</p>
 									</div>
 									<button
 										type="button"
-										class="px-4 py-2 rounded-2xl text-sm font-medium border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+										class="px-4 py-2 rounded-2xl text-sm font-medium border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
 										on:click={() => viewOrder(pedido.id_venta)}
 									>
 										Ver detalles →
@@ -230,13 +229,13 @@
 
 							<!-- Order Items Preview -->
 							{#if pedido.items && pedido.items.length > 0}
-								<div class="border-t border-white/10 pt-4">
-									<p class="text-xs text-slate-400 mb-3">
+								<div class="border-t border-slate-200 pt-4">
+									<p class="text-xs text-slate-600 mb-3">
 										{pedido.items.length} artículo{pedido.items.length === 1 ? '' : 's'}
 									</p>
 									<div class="flex gap-2 overflow-x-auto pb-2">
 										{#each pedido.items.slice(0, 5) as item}
-											<div class="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-slate-800 border border-white/10">
+											<div class="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
 												{#if item.imagen}
 													<img
 														src={item.imagen}
@@ -245,7 +244,7 @@
 													/>
 												{:else}
 													<div class="w-full h-full flex items-center justify-center">
-														<svg class="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+														<svg class="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
 														</svg>
 													</div>
@@ -253,8 +252,8 @@
 											</div>
 										{/each}
 										{#if pedido.items.length > 5}
-											<div class="flex-shrink-0 w-16 h-16 rounded-lg bg-slate-800/50 border border-white/10 flex items-center justify-center">
-												<p class="text-xs text-slate-400">+{pedido.items.length - 5}</p>
+											<div class="flex-shrink-0 w-16 h-16 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
+												<p class="text-xs text-slate-600">+{pedido.items.length - 5}</p>
 											</div>
 										{/if}
 									</div>
@@ -262,22 +261,22 @@
 							{/if}
 
 							<!-- Additional Info -->
-							<div class="border-t border-white/10 pt-4 mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+							<div class="border-t border-slate-200 pt-4 mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
 								{#if pedido.fecha_entrega_estimada}
 									<div>
-										<p class="text-xs text-slate-400 mb-1">Entrega estimada</p>
+										<p class="text-xs text-slate-600 mb-1">Entrega estimada</p>
 										<p class="text-sm font-medium">{formatDate(pedido.fecha_entrega_estimada)}</p>
 									</div>
 								{/if}
 								{#if pedido.numero_tracking}
 									<div>
-										<p class="text-xs text-slate-400 mb-1">Tracking</p>
+										<p class="text-xs text-slate-600 mb-1">Tracking</p>
 										<p class="text-sm font-mono font-medium">{pedido.numero_tracking}</p>
 									</div>
 								{/if}
 								{#if pedido.ciudad}
 									<div>
-										<p class="text-xs text-slate-400 mb-1">Envío a</p>
+										<p class="text-xs text-slate-600 mb-1">Envío a</p>
 										<p class="text-sm font-medium truncate">
 											{pedido.ciudad}{pedido.departamento ? `, ${pedido.departamento}` : ''}
 										</p>

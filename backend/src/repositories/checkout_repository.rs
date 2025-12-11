@@ -381,31 +381,45 @@ impl CheckoutRepository {
         tx: &mut Transaction<'_, Postgres>,
         id_venta: i32,
         id_metodo_pago: i32,
+        id_metodo_pago_cliente: Option<i32>,
         monto: Decimal,
         comision: Decimal,
+        metodo_pago_cliente: Option<&crate::models::MetodoPagoCliente>,
         ip_cliente: Option<String>,
         user_agent: Option<String>,
     ) -> Result<Pago, sqlx::Error> {
         let monto_neto = monto - comision;
         let numero_transaccion = format!("TXN-{}-{:06}", Utc::now().format("%Y%m%d"), id_venta);
 
+        let (token_pago, ultimos_4, marca_tarjeta) = if let Some(mpc) = metodo_pago_cliente {
+            (
+                mpc.token_pago.clone(),
+                mpc.ultimos_4_digitos.clone(),
+                mpc.marca.clone(),
+            )
+        } else {
+            (None, None, None)
+        };
+
         // NOTA: Por ahora el pago es simulado, se marca como completado inmediatamente
         // TODO: Integrar con procesador de pagos real (Stripe, Culqi, etc.)
         let pago = sqlx::query!(
             r#"
             INSERT INTO pago (
-                id_venta, id_metodo_pago,
+                id_venta, id_metodo_pago, id_metodo_pago_cliente,
                 numero_transaccion, estado,
                 monto, moneda, comision, monto_neto,
                 proveedor_pago, fecha_pago,
+                token_pago, ultimos_4_digitos, marca_tarjeta,
                 ip_cliente, user_agent
             )
             VALUES (
-                $1, $2,
-                $3, 'completado'::estado_pago,
-                $4, 'PEN', $5, $6,
+                $1, $2, $3,
+                $4, 'completado'::estado_pago,
+                $5, 'PEN', $6, $7,
                 'SIMULADO', CURRENT_TIMESTAMP,
-                $7, $8
+                $8, $9, $10,
+                $11, $12
             )
             RETURNING
                 id_pago,
@@ -434,10 +448,14 @@ impl CheckoutRepository {
             "#,
             id_venta,
             id_metodo_pago,
+            id_metodo_pago_cliente,
             numero_transaccion,
             monto,
             comision,
             monto_neto,
+            token_pago,
+            ultimos_4,
+            marca_tarjeta,
             ip_cliente,
             user_agent
         )
@@ -753,6 +771,44 @@ impl CheckoutRepository {
             Some(c) => c,
             None => return Err("Cupón no válido, inactivo o expirado".to_string()),
         };
+
+        // Validar asignaciones de cupón:
+        // - Si el cupón tiene asignaciones en asignacion_cupon,
+        //   solo los usuarios asignados pueden usarlo.
+        // - Si no tiene asignaciones, se considera público.
+        let asignaciones_count = sqlx::query!(
+                r#"
+                SELECT COUNT(*) as "count!"
+                FROM asignacion_cupon
+                WHERE id_cupon = $1
+                "#,
+                cupon.id_cupon
+            )
+            .fetch_one(pool)
+            .await
+            .map_err(|e| format!("Error al verificar asignaciones de cupón: {}", e))?
+            .count;
+
+        if asignaciones_count > 0 {
+            let asignado = sqlx::query_scalar!(
+                    r#"
+                    SELECT EXISTS (
+                     SELECT 1
+                     FROM asignacion_cupon
+                     WHERE id_cupon = $1 AND id_usuario = $2
+                    ) as "exists!"
+                    "#,
+                    cupon.id_cupon,
+                    id_usuario
+            )
+            .fetch_one(pool)
+            .await
+            .map_err(|e| format!("Error al verificar si el cupón está asignado al usuario: {}", e))?;
+
+            if !asignado {
+                return Err("Este cupón no está disponible para tu cuenta".to_string());
+            }
+        }
 
         // Validar compra mínima
         if let Some(compra_min) = cupon.compra_minima {

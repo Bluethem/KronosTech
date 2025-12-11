@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { catalogoService, type ProductoDetalle, type Valoracion } from '$lib/services/api';
+	import { catalogoService, type ProductoDetalle, type Valoracion, type CrearValoracionRequest } from '$lib/services/api';
 	import { cartService } from '$lib/services/cart';
 	import { isAuthenticated } from '$lib/stores/auth';
 	import { ShoppingCart, Heart, Truck, Shield, Star, Minus, Plus, ThumbsUp, BadgeCheck } from 'lucide-svelte';
@@ -16,6 +16,11 @@
 	let imagenSeleccionada = 0;
 	let tabActiva: 'especificaciones' | 'descripcion' | 'resenas' = 'especificaciones';
 	let isAddingToCart = false;
+	let creandoResena = false;
+	let calificacionNueva = 5;
+	let tituloNuevo = '';
+	let comentarioNuevo = '';
+	let errorResena: string | null = null;
 	
 	$: productId = parseInt($page.params.id || '0');
 	$: imagenes = producto?.imagenes || [producto?.imagen_principal || 'https://placehold.co/800x600/1e293b/94a3b8?text=Producto'];
@@ -104,6 +109,56 @@
 	onMount(() => {
 		cargarProducto();
 	});
+
+	async function enviarResena() {
+		if (!$isAuthenticated) {
+			await goto(`/login?redirect=/producto/${productId}`);
+			return;
+		}
+
+		if (!producto) return;
+
+		if (calificacionNueva < 1 || calificacionNueva > 5) {
+			errorResena = 'La calificación debe estar entre 1 y 5 estrellas.';
+			return;
+		}
+
+		if (!comentarioNuevo.trim()) {
+			errorResena = 'Por favor escribe un comentario sobre el producto.';
+			return;
+		}
+
+		creandoResena = true;
+		errorResena = null;
+
+		const payload: CrearValoracionRequest = {
+			calificacion: calificacionNueva,
+			titulo: tituloNuevo.trim() || undefined,
+			comentario: comentarioNuevo.trim() || undefined
+		};
+
+		try {
+			const nueva = await catalogoService.crearValoracion(productId, payload);
+			valoraciones = [nueva, ...valoraciones];
+			// Actualizar contadores básicos del producto en el frontend
+			producto = {
+				...producto,
+				valoracion_promedio:
+					((producto.valoracion_promedio || 0) * producto.total_valoraciones + nueva.calificacion) /
+					(producto.total_valoraciones + 1),
+				total_valoraciones: producto.total_valoraciones + 1
+			};
+			// Reset de formulario
+			calificacionNueva = 5;
+			tituloNuevo = '';
+			comentarioNuevo = '';
+		} catch (err: any) {
+			console.error('Error al crear reseña:', err);
+			errorResena = err?.message || 'No se pudo enviar tu reseña. Intenta nuevamente.';
+		} finally {
+			creandoResena = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -387,6 +442,81 @@
 				{:else if tabActiva === 'resenas'}
 					<!-- Reseñas -->
 					<div class="space-y-8">
+						<!-- Formulario para nueva reseña -->
+						{#if $isAuthenticated}
+							<div class="border border-border-light dark:border-border-dark rounded-lg p-6 bg-slate-50 dark:bg-surface-dark/40">
+								<h3 class="text-lg font-semibold mb-3">Escribe una reseña</h3>
+								{#if errorResena}
+									<p class="mb-3 text-sm text-red-600 dark:text-red-400">{errorResena}</p>
+								{/if}
+								<form class="space-y-4" on:submit|preventDefault={enviarResena}>
+									<div class="space-y-1">
+										<label class="text-sm font-medium text-slate-700 dark:text-slate-300">Calificación</label>
+										<div class="flex items-center gap-2 text-primary">
+											{#each [1, 2, 3, 4, 5] as estrella}
+												<button
+													type="button"
+													class="p-0.5"
+													on:click={() => (calificacionNueva = estrella)}
+												>
+													<Star
+														size={22}
+														fill={estrella <= calificacionNueva ? 'currentColor' : 'none'}
+													/>
+												</button>
+											{/each}
+											<span class="ml-2 text-sm text-slate-600 dark:text-slate-400">{calificacionNueva} / 5</span>
+										</div>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium text-slate-700 dark:text-slate-300">Título (opcional)</label>
+										<input
+											type="text"
+											bind:value={tituloNuevo}
+											class="w-full border border-border-light dark:border-border-dark rounded-lg px-3 py-2 text-sm bg-white dark:bg-surface-dark"
+											maxlength={120}
+											placeholder="Lo que más te gustó del producto"
+										/>
+									</div>
+									<div class="space-y-1">
+										<label class="text-sm font-medium text-slate-700 dark:text-slate-300">Tu reseña</label>
+										<textarea
+											bind:value={comentarioNuevo}
+											class="w-full border border-border-light dark:border-border-dark rounded-lg px-3 py-2 text-sm bg-white dark:bg-surface-dark min-h-[100px]"
+											maxlength={800}
+											placeholder="Comparte tu experiencia con este producto"
+										></textarea>
+									</div>
+									<div class="flex justify-end">
+										<button
+											 type="submit"
+											 class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-60"
+											 disabled={creandoResena}
+										>
+											{#if creandoResena}
+												Enviando reseña...
+											{:else}
+												Enviar reseña
+											{/if}
+										</button>
+									</div>
+								</form>
+							</div>
+						{:else}
+							<div class="border border-border-light dark:border-border-dark rounded-lg p-6 bg-slate-50 dark:bg-surface-dark/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+								<div>
+									<p class="text-sm font-semibold text-slate-700 dark:text-slate-200">¿Has comprado este producto?</p>
+									<p class="text-sm text-slate-600 dark:text-slate-400">Inicia sesión para dejar tu reseña.</p>
+								</div>
+								<a
+									href={`/login?redirect=/producto/${productId}`}
+									class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90"
+								>
+									Iniciar sesión
+								</a>
+							</div>
+						{/if}
+
 						<!-- Resumen de valoraciones -->
 						<div class="flex flex-wrap gap-x-12 gap-y-8">
 							{#if producto.valoracion_promedio && producto.total_valoraciones > 0}

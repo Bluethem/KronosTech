@@ -121,28 +121,28 @@
 	<title>Método de envío | KronosTech</title>
 </svelte:head>
 
-<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-white via-slate-50 to-white text-slate-900">
 	<div class="max-w-6xl mx-auto px-4 lg:px-0 py-8 space-y-6">
 		<!-- STEPPER -->
 		<div class="space-y-4">
-			<div class="flex items-center gap-3 text-xs text-slate-400">
+			<div class="flex items-center gap-3 text-xs text-slate-600">
 				<div class="flex items-center gap-2">
 					<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-semibold">1</div>
 					<span class="font-medium">Carrito</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/70"></div>
+				<div class="h-px flex-1 bg-slate-300"></div>
 				<div class="flex items-center gap-2">
 					<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-semibold">2</div>
 					<span class="font-medium">Dirección</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/70"></div>
+				<div class="h-px flex-1 bg-slate-300"></div>
 				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center text-[10px] font-semibold">3</div>
-					<span class="font-semibold text-slate-100">Envío</span>
+					<div class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-semibold">3</div>
+					<span class="font-semibold text-slate-900">Envío</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/50"></div>
+				<div class="h-px flex-1 bg-slate-200"></div>
 				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-full border border-slate-600 text-slate-400 flex items-center justify-center text-[10px] font-semibold">4</div>
+					<div class="w-6 h-6 rounded-full border border-slate-300 text-slate-600 flex items-center justify-center text-[10px] font-semibold">4</div>
 					<span>Pago</span>
 				</div>
 			</div>
@@ -150,14 +150,14 @@
 			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 				<div>
 					<h1 class="text-3xl font-bold tracking-tight">Método de Envío</h1>
-					<p class="text-sm text-slate-400 mt-1">
+					<p class="text-sm text-slate-600 mt-1">
 						Elige cómo quieres recibir tu pedido. El costo de envío se actualizará automáticamente.
 					</p>
 				</div>
 
 				<button
 					type="button"
-					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
 					on:click={goBackToAddress}
 				>
 					← Volver a dirección
@@ -166,20 +166,20 @@
 		</div>
 
 		{#if globalError}
-			<div class="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+			<div class="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
 				{globalError}
 			</div>
 		{/if}
 
 		{#if loading}
-			<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 text-center">
-				<p class="text-slate-400">Calculando totales...</p>
+			<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-8 text-center shadow-sm">
+				<p class="text-slate-600">Calculando totales...</p>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 lg:grid-cols-[minmax(0,2.1fr),minmax(0,1fr)] gap-6 items-start">
 				<section class="space-y-5">
-					<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5">
-						<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">
+					<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5">
+						<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700 mb-3">
 							Opciones de envío
 						</h2>
 
@@ -189,8 +189,8 @@
 									type="button"
 									class={`w-full text-left rounded-2xl border px-4 py-3 flex items-start gap-3 transition-all ${
 										selectedMethodId === method.id
-											? 'border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
-											: 'border-white/10 bg-black/40 hover:bg-white/5'
+											? 'border-blue-500 bg-blue-50 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
+											: 'border-slate-200 bg-slate-50 hover:bg-slate-100'
 									}`}
 									on:click={() => (selectedMethodId = method.id)}
 								>
@@ -199,7 +199,7 @@
 											class={`w-4 h-4 rounded-full border flex items-center justify-center ${
 												selectedMethodId === method.id
 													? 'border-blue-400 bg-blue-500'
-													: 'border-slate-500 bg-black'
+													: 'border-slate-400 bg-white'
 											}`}
 										>
 											{#if selectedMethodId === method.id}
@@ -214,15 +214,15 @@
 												{method.nombre}
 											</p>
 											{#if method.etiqueta}
-												<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-500/50">
+												<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
 													{method.etiqueta}
 												</span>
 											{/if}
 										</div>
-										<p class="text-xs text-slate-300">
+										<p class="text-xs text-slate-700">
 											{method.descripcion}
 										</p>
-										<p class="text-xs text-slate-400">
+										<p class="text-xs text-slate-600">
 											Estimado: {method.dias}
 										</p>
 									</div>
@@ -237,16 +237,16 @@
 						</div>
 					</div>
 
-					<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5 space-y-3">
+					<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5 space-y-3">
 						<div class="flex items-center justify-between">
-							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300">
+							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">
 								Observaciones para la entrega
 							</h2>
 							<span class="text-[11px] text-slate-500">Opcional</span>
 						</div>
 						<textarea
 							rows="3"
-							class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+							class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							bind:value={deliveryNotes}
 							placeholder="Ej. Entregar en recepción, llamar antes de llegar, referencia adicional…"
 						></textarea>
@@ -258,13 +258,13 @@
 
 				<aside
 					aria-label="Resumen del pedido"
-					class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 space-y-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] sticky top-24"
+					class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-5 space-y-4 shadow-lg sticky top-24"
 				>
 					<h2 class="text-lg font-semibold">Resumen del pedido</h2>
 
 					<div class="space-y-2 text-sm">
 						<div class="flex justify-between">
-							<span class="text-slate-400">
+							<span class="text-slate-600">
 								Subtotal ({$cartItems.length} artículo{$cartItems.length === 1 ? '' : 's'})
 							</span>
 							<span class="font-medium">
@@ -273,19 +273,19 @@
 						</div>
 
 						{#if calculatedTotal?.cupon_aplicado}
-							<div class="flex justify-between items-center text-emerald-400">
+							<div class="flex justify-between items-center text-emerald-600">
 								<span class="text-xs flex items-center gap-1">
 									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
 									Cupón: {calculatedTotal.cupon_aplicado}
 								</span>
-								<span class="font-medium text-emerald-300">
+								<span class="font-medium text-emerald-600">
 									− S/. {calculatedTotal.descuento_cupon.toFixed(2)}
 								</span>
 							</div>
 						{/if}
 
 						<div class="flex justify-between">
-							<span class="text-slate-400">Descuento total</span>
+							<span class="text-slate-600">Descuento total</span>
 							<span class="font-medium">
 								{#if descuento > 0}
 									− S/. {descuento.toFixed(2)}
@@ -296,13 +296,13 @@
 						</div>
 
 						<div class="flex justify-between items-center">
-							<span class="text-slate-400">Envío ({selectedMethod.nombre})</span>
+							<span class="text-slate-600">Envío ({selectedMethod.nombre})</span>
 							<span class="font-medium">
 								{costoEnvio === 0 ? 'Gratis' : `S/. ${costoEnvio.toFixed(2)}`}
 							</span>
 						</div>
 
-						<div class="border-t border-white/10 pt-3 mt-2 flex justify-between items-center">
+						<div class="border-t border-slate-200 pt-3 mt-2 flex justify-between items-center">
 							<span class="text-sm font-semibold">Total</span>
 							<span class="text-xl font-bold">
 								S/. {total.toFixed(2)}

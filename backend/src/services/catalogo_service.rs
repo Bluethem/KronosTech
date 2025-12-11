@@ -1,5 +1,5 @@
 use crate::repositories::{CatalogoRepository, ProductoFilters};
-use crate::models::{familia, categoria, marca, producto_detalle, Subcategoria, Valoracion};
+use crate::models::{familia, categoria, marca, producto_detalle, Subcategoria, Valoracion, valoracion::CrearValoracionRequest};
 use sqlx::PgPool;
 
 pub struct CatalogoService;
@@ -61,8 +61,30 @@ impl CatalogoService {
 
     pub async fn get_valoraciones(
         pool: &PgPool,
-        id_producto: i32,
+        id_producto_detalle: i32,
     ) -> Result<Vec<Valoracion>, sqlx::Error> {
-        CatalogoRepository::get_valoraciones(pool, id_producto).await
+        CatalogoRepository::get_valoraciones(pool, id_producto_detalle).await
+    }
+
+    pub async fn crear_valoracion(
+        pool: &PgPool,
+        id_producto_detalle: i32,
+        id_usuario: i32,
+        payload: CrearValoracionRequest,
+    ) -> Result<Valoracion, String> {
+        if payload.calificacion < 1 || payload.calificacion > 5 {
+            return Err("La calificación debe estar entre 1 y 5".to_string());
+        }
+
+        crate::repositories::catalogo_repository::crear_valoracion(
+            pool,
+            id_producto_detalle,
+            id_usuario,
+            payload.calificacion,
+            payload.titulo,
+            payload.comentario,
+        )
+        .await
+        .map_err(|e| format!("Error al crear valoración: {}", e))
     }
 }

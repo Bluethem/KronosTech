@@ -30,6 +30,8 @@ export interface ProcesarCheckoutRequest {
 	id_metodo_pago: number;
 	notas_cliente?: string;
 	codigo_cupon?: string;
+	// ID del método de pago del cliente (tarjeta guardada), opcional
+	id_metodo_pago_cliente?: number | null;
 }
 
 export interface DetalleVenta {
@@ -71,6 +73,13 @@ export interface Venta {
 	notas_cliente?: string;
 	// Items
 	items: DetalleVenta[];
+	// Información opcional de pago (por ejemplo, QR para Yape/Plin)
+	info_pago?: {
+		 tipo: string;
+		 monto: number;
+		 moneda: string;
+		 qr_data: string;
+	};
 }
 
 interface ApiResponse<T> {

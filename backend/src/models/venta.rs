@@ -83,6 +83,8 @@ pub struct ProcesarCheckoutRequest {
     pub id_metodo_pago: i32,
     pub notas_cliente: Option<String>,
     pub codigo_cupon: Option<String>,
+    // ID del método de pago del cliente (tarjeta guardada), opcional
+    pub id_metodo_pago_cliente: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -111,6 +113,8 @@ pub struct VentaResponse {
     pub ciudad: Option<String>,
     pub departamento: Option<String>,
     pub items: Vec<DetalleVentaResponse>,
+    // Información opcional de pago (por ejemplo, QR para Yape/Plin)
+    pub info_pago: Option<serde_json::Value>,
 }
 
 impl From<Venta> for VentaResponse {
@@ -129,6 +133,7 @@ impl From<Venta> for VentaResponse {
             ciudad: v.ciudad,
             departamento: v.departamento,
             items: Vec::new(), // Se llenará después
+            info_pago: None,
         }
     }
 }

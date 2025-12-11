@@ -488,7 +488,7 @@ impl CatalogoRepository {
     // ==================== VALORACIONES ====================
     pub async fn get_valoraciones(
         pool: &PgPool,
-        id_producto: i32,
+        id_producto_detalle: i32,
     ) -> Result<Vec<Valoracion>, sqlx::Error> {
         let rows = sqlx::query!(
             r#"
@@ -515,12 +515,12 @@ impl CatalogoRepository {
                 ) as imagenes
             FROM valoracion v
             INNER JOIN usuario u ON v.id_usuario = u.id_usuario
-            WHERE v.id_producto = $1
+            WHERE v.id_producto_detalle = $1
               AND v.aprobado = TRUE
             ORDER BY v.fecha_creacion DESC
             LIMIT 50
             "#,
-            id_producto
+            id_producto_detalle
         )
         .fetch_all(pool)
         .await?;
@@ -559,6 +559,92 @@ impl CatalogoRepository {
 
         Ok(valoraciones)
     }
+}
+
+pub async fn crear_valoracion(
+    pool: &PgPool,
+    id_producto_detalle: i32,
+    id_usuario: i32,
+    calificacion: i32,
+    titulo: Option<String>,
+    comentario: Option<String>,
+) -> Result<Valoracion, sqlx::Error> {
+    // Obtener id_producto a partir del producto_detalle
+    let prod = sqlx::query!(
+        "SELECT id_producto FROM producto_detalle WHERE id_producto_detalle = $1",
+        id_producto_detalle
+    )
+    .fetch_one(pool)
+    .await?;
+
+    let id_producto = prod.id_producto;
+
+    let inserted = sqlx::query!(
+        r#"
+        INSERT INTO valoracion (
+            id_producto,
+            id_usuario,
+            id_producto_detalle,
+            calificacion,
+            titulo,
+            comentario,
+            compra_verificada,
+            votos_util,
+            votos_no_util,
+            aprobado,
+            fecha_creacion
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, FALSE, 0, 0, TRUE, CURRENT_TIMESTAMP)
+        RETURNING
+            id_valoracion,
+            id_producto,
+            id_usuario,
+            id_producto_detalle,
+            calificacion,
+            titulo,
+            comentario,
+            compra_verificada,
+            votos_util,
+            votos_no_util,
+            aprobado,
+            fecha_creacion
+        "#,
+        id_producto,
+        id_usuario,
+        id_producto_detalle,
+        calificacion,
+        titulo,
+        comentario
+    )
+    .fetch_one(pool)
+    .await?;
+
+    // Convertir fecha_creacion (PrimitiveDateTime) a DateTime<Utc>
+    let fecha_creacion_utc = inserted
+        .fecha_creacion
+        .map(|dt| {
+            let unix_ts = dt.assume_utc().unix_timestamp();
+            DateTime::from_timestamp(unix_ts, 0).unwrap_or_else(|| Utc::now())
+        })
+        .unwrap_or_else(|| Utc::now());
+
+    Ok(Valoracion {
+        id_valoracion: inserted.id_valoracion,
+        id_producto: inserted.id_producto,
+        id_usuario: inserted.id_usuario,
+        id_producto_detalle: inserted.id_producto_detalle,
+        calificacion: inserted.calificacion,
+        titulo: inserted.titulo,
+        comentario: inserted.comentario,
+        compra_verificada: inserted.compra_verificada.unwrap_or(false),
+        votos_util: inserted.votos_util.unwrap_or(0),
+        votos_no_util: inserted.votos_no_util.unwrap_or(0),
+        aprobado: inserted.aprobado.unwrap_or(false),
+        fecha_creacion: fecha_creacion_utc,
+        usuario_nombre: None,
+        usuario_apellido: None,
+        imagenes: None,
+    })
 }
 
 // ==================== FILTROS ====================

@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     Json,
     response::IntoResponse,
 };
@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
 use crate::repositories::ProductoFilters;
-use crate::services::CatalogoService;
+use crate::services::{CatalogoService, AuthService};
+use crate::models::valoracion::CrearValoracionRequest;
 
 // ==================== RESPONSES ====================
 #[derive(Debug, Serialize)]
@@ -213,5 +214,58 @@ pub async fn get_valoraciones(
             message: None,
         })),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+/// POST /api/productos/:id/valoraciones - Crear una nueva valoración (requiere autenticación)
+pub async fn crear_valoracion(
+    State(pool): State<PgPool>,
+    Path(id): Path<i32>,
+    headers: HeaderMap,
+    Json(payload): Json<CrearValoracionRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    let token = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| if v.starts_with("Bearer ") { Some(&v[7..]) } else { None })
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: Some("Token no proporcionado".to_string()),
+                }),
+            )
+        })?;
+
+    let claims = AuthService::verify_token(token).map_err(|e| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                message: Some(e),
+            }),
+        )
+    })?;
+
+    match CatalogoService::crear_valoracion(&pool, id, claims.sub, payload).await {
+        Ok(valoracion) => Ok((
+            StatusCode::CREATED,
+            Json(ApiResponse {
+                success: true,
+                data: Some(valoracion),
+                message: Some("Valoración creada correctamente".to_string()),
+            }),
+        )),
+        Err(err) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                message: Some(err),
+            }),
+        )),
     }
 }
