@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { authUser, isAuthenticated } from '$lib/stores/auth';
 	import { FileText, Search, Filter, Download, Calendar, User, Activity, AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-svelte';
 
 	interface LogEntry {
@@ -25,6 +27,16 @@
 	let fechaFin = '';
 
 	onMount(() => {
+		if (!$isAuthenticated) {
+			goto('/login?redirect=/admin/logs');
+			return;
+		}
+
+		if ($authUser?.rol !== 'super_admin') {
+			goto('/admin');
+			return;
+		}
+
 		cargarLogs();
 	});
 
@@ -266,7 +278,7 @@
 	<title>Logs y Auditoría | KronosTech Admin</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="space-y-6 p-4 md:p-6">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>

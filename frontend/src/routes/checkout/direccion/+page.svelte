@@ -122,32 +122,32 @@
 	<title>Dirección de envío | KronosTech</title>
 </svelte:head>
 
-<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-white via-slate-50 to-white text-slate-900">
 	<div class="max-w-6xl mx-auto px-4 lg:px-0 py-8 space-y-6">
 		<!-- STEPPER -->
 		<div class="space-y-4">
-			<div class="flex items-center gap-3 text-xs text-slate-400">
+			<div class="flex items-center gap-3 text-xs text-slate-600">
 				<!-- Carrito -->
 				<div class="flex items-center gap-2">
 					<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-semibold">1</div>
 					<span class="font-medium">Carrito</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/70"></div>
+				<div class="h-px flex-1 bg-slate-300"></div>
 				<!-- Dirección (actual) -->
 				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center text-[10px] font-semibold">2</div>
-					<span class="font-semibold text-slate-100">Dirección</span>
+					<div class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-semibold">2</div>
+					<span class="font-semibold text-slate-900">Dirección</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/50"></div>
+				<div class="h-px flex-1 bg-slate-200"></div>
 				<!-- Envío -->
 				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-full border border-slate-600 text-slate-400 flex items-center justify-center text-[10px] font-semibold">3</div>
+					<div class="w-6 h-6 rounded-full border border-slate-300 text-slate-600 flex items-center justify-center text-[10px] font-semibold">3</div>
 					<span>Envío</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/50"></div>
+				<div class="h-px flex-1 bg-slate-200"></div>
 				<!-- Pago -->
 				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-full border border-slate-600 text-slate-400 flex items-center justify-center text-[10px] font-semibold">4</div>
+					<div class="w-6 h-6 rounded-full border border-slate-300 text-slate-600 flex items-center justify-center text-[10px] font-semibold">4</div>
 					<span>Pago</span>
 				</div>
 			</div>
@@ -156,14 +156,14 @@
 			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 				<div>
 					<h1 class="text-3xl font-bold tracking-tight">Dirección de Envío</h1>
-					<p class="text-sm text-slate-400 mt-1">
+					<p class="text-sm text-slate-600 mt-1">
 						Selecciona dónde quieres recibir tu pedido o agrega una nueva dirección.
 					</p>
 				</div>
 
 				<button
 					type="button"
-					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
 					on:click={goBackToCart}
 				>
 					← Volver al carrito
@@ -172,14 +172,14 @@
 		</div>
 
 		{#if globalError}
-			<div class="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+			<div class="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
 				{globalError}
 			</div>
 		{/if}
 
 		{#if loading}
-			<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 text-center">
-				<p class="text-slate-400">Cargando direcciones...</p>
+			<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-8 text-center shadow-sm">
+				<p class="text-slate-600">Cargando direcciones...</p>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 lg:grid-cols-[minmax(0,2.1fr),minmax(0,1fr)] gap-6 items-start">
@@ -187,8 +187,8 @@
 				<section class="space-y-5">
 					<!-- Direcciones existentes -->
 					{#if $direcciones.length > 0}
-						<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5 space-y-3">
-							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300">
+						<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5 space-y-3">
+							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">
 								Mis direcciones
 							</h2>
 
@@ -198,8 +198,8 @@
 										type="button"
 										class={`w-full text-left rounded-2xl border px-4 py-3 transition-all ${
 											$direccionSeleccionada?.id_direccion === dir.id_direccion
-												? 'border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
-												: 'border-white/10 bg-black/40 hover:bg-white/5'
+												? 'border-blue-500 bg-blue-50 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
+												: 'border-slate-200 bg-slate-50 hover:bg-slate-100'
 										}`}
 										on:click={() => handleSelectAddress(dir)}
 									>
@@ -210,7 +210,7 @@
 													class={`w-4 h-4 rounded-full border flex items-center justify-center ${
 														$direccionSeleccionada?.id_direccion === dir.id_direccion
 															? 'border-blue-400 bg-blue-500'
-															: 'border-slate-500 bg-black'
+															: 'border-slate-400 bg-white'
 													}`}
 												>
 													{#if $direccionSeleccionada?.id_direccion === dir.id_direccion}
@@ -228,16 +228,16 @@
 														</p>
 													{/if}
 													{#if dir.es_predeterminada}
-														<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-500/50">
+														<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
 															Predeterminada
 														</span>
 													{/if}
 												</div>
-												<p class="text-xs text-slate-300">
+												<p class="text-xs text-slate-700">
 													{dir.direccion_linea1}
 													{#if dir.direccion_linea2}, {dir.direccion_linea2}{/if}
 												</p>
-												<p class="text-xs text-slate-400">
+												<p class="text-xs text-slate-600">
 													{dir.ciudad}, {dir.departamento}
 													{#if dir.codigo_postal} - {dir.codigo_postal}{/if}
 												</p>
@@ -258,21 +258,21 @@
 					{#if !showNewAddressForm}
 						<button
 							type="button"
-							class="w-full rounded-2xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 px-4 py-6 text-sm font-medium transition-colors"
+							class="w-full rounded-2xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 px-4 py-6 text-sm font-medium transition-colors"
 							on:click={() => (showNewAddressForm = true)}
 						>
 							+ Agregar nueva dirección
 						</button>
 					{:else}
 						<!-- Formulario nueva dirección -->
-						<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5 space-y-4">
+						<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5 space-y-4">
 							<div class="flex items-center justify-between">
-								<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300">
+								<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">
 									Nueva dirección
 								</h2>
 								<button
 									type="button"
-									class="text-xs text-slate-400 hover:text-slate-100"
+									class="text-xs text-slate-600 hover:text-slate-900"
 									on:click={() => (showNewAddressForm = false)}
 								>
 									Cancelar
@@ -282,18 +282,18 @@
 							<form class="space-y-3" on:submit|preventDefault={handleCreateAddress}>
 								<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 									<div class="space-y-1">
-										<label class="text-xs text-slate-300">Nombre completo</label>
+										<label class="text-xs text-slate-700">Nombre completo</label>
 										<input
-											class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+											class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 											bind:value={newAddress.nombre_completo}
 											placeholder="Juan Pérez"
 										/>
 									</div>
 
 									<div class="space-y-1">
-										<label class="text-xs text-slate-300">Teléfono</label>
+										<label class="text-xs text-slate-700">Teléfono</label>
 										<input
-											class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+											class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 											bind:value={newAddress.telefono_contacto}
 											placeholder="999 999 999"
 										/>
@@ -301,9 +301,9 @@
 								</div>
 
 								<div class="space-y-1">
-									<label class="text-xs text-slate-300">Dirección *</label>
+									<label class="text-xs text-slate-700">Dirección *</label>
 									<input
-										class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+										class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										bind:value={newAddress.direccion_linea1}
 										placeholder="Av. Principal 123"
 										required
@@ -311,9 +311,9 @@
 								</div>
 
 								<div class="space-y-1">
-									<label class="text-xs text-slate-300">Referencia / Dpto / Piso (opcional)</label>
+									<label class="text-xs text-slate-700">Referencia / Dpto / Piso (opcional)</label>
 									<input
-										class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+										class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										bind:value={newAddress.direccion_linea2}
 										placeholder="Dpto 201, Edificio B"
 									/>
@@ -321,9 +321,9 @@
 
 								<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 									<div class="space-y-1">
-										<label class="text-xs text-slate-300">Ciudad *</label>
+										<label class="text-xs text-slate-700">Ciudad *</label>
 										<input
-											class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+											class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 											bind:value={newAddress.ciudad}
 											placeholder="Lima"
 											required
@@ -331,9 +331,9 @@
 									</div>
 
 									<div class="space-y-1">
-										<label class="text-xs text-slate-300">Departamento *</label>
+										<label class="text-xs text-slate-700">Departamento *</label>
 										<input
-											class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+											class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 											bind:value={newAddress.departamento}
 											placeholder="Lima"
 											required
@@ -341,9 +341,9 @@
 									</div>
 
 									<div class="space-y-1">
-										<label class="text-xs text-slate-300">Código postal</label>
+										<label class="text-xs text-slate-700">Código postal</label>
 										<input
-											class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+											class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 											bind:value={newAddress.codigo_postal}
 											placeholder="15001"
 										/>
@@ -351,10 +351,10 @@
 								</div>
 
 								<div class="space-y-1">
-									<label class="text-xs text-slate-300">Referencia adicional</label>
+									<label class="text-xs text-slate-700">Referencia adicional</label>
 									<textarea
 										rows="2"
-										class="w-full rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/70"
+										class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										bind:value={newAddress.referencia}
 										placeholder="Ej. Frente al parque, al lado de la farmacia..."
 									></textarea>
@@ -364,10 +364,10 @@
 									<input
 										id="es-predeterminada"
 										type="checkbox"
-										class="rounded border border-white/30 bg-black/40"
+										class="rounded border border-slate-300 bg-slate-50"
 										bind:checked={newAddress.es_predeterminada}
 									/>
-									<label for="es-predeterminada" class="text-xs text-slate-300">
+									<label for="es-predeterminada" class="text-xs text-slate-700">
 										Establecer como dirección predeterminada
 									</label>
 								</div>
@@ -386,13 +386,13 @@
 
 				<!-- Columna derecha: resumen -->
 				<aside
-					class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 space-y-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] sticky top-24"
+					class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-5 space-y-4 shadow-lg sticky top-24"
 				>
 					<h2 class="text-lg font-semibold">Resumen</h2>
 
 					<div class="space-y-2 text-sm">
 						<div class="flex justify-between">
-							<span class="text-slate-400">
+							<span class="text-slate-600">
 								Artículos en carrito
 							</span>
 							<span class="font-medium">
@@ -401,18 +401,18 @@
 						</div>
 
 						{#if $direccionSeleccionada}
-							<div class="pt-3 border-t border-white/10">
-								<p class="text-xs text-slate-400 mb-2">Dirección seleccionada:</p>
-								<div class="rounded-xl bg-black/40 border border-white/10 px-3 py-2 space-y-1">
+							<div class="pt-3 border-t border-slate-200">
+								<p class="text-xs text-slate-600 mb-2">Dirección seleccionada:</p>
+								<div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 space-y-1">
 									{#if $direccionSeleccionada.nombre_completo}
 										<p class="text-xs font-semibold">
 											{$direccionSeleccionada.nombre_completo}
 										</p>
 									{/if}
-									<p class="text-xs text-slate-300">
+									<p class="text-xs text-slate-700">
 										{$direccionSeleccionada.direccion_linea1}
 									</p>
-									<p class="text-xs text-slate-400">
+									<p class="text-xs text-slate-600">
 										{$direccionSeleccionada.ciudad}, {$direccionSeleccionada.departamento}
 									</p>
 								</div>

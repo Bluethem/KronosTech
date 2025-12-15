@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { authUser, isAuthenticated } from '$lib/stores/auth';
 	import {
 		adminService,
 		type UsuarioAdmin,
@@ -30,6 +32,16 @@
 	};
 
 	onMount(async () => {
+		if (!$isAuthenticated) {
+			goto('/login?redirect=/admin/usuarios');
+			return;
+		}
+
+		if ($authUser?.rol !== 'super_admin') {
+			goto('/admin');
+			return;
+		}
+
 		await cargarUsuarios();
 	});
 
@@ -180,7 +192,7 @@
 	<title>Gestión de Usuarios | KronosTech Admin</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="space-y-6 p-4 md:p-6">
 	<!-- Header -->
 	<div>
 		<h1 class="text-3xl font-bold tracking-tight text-text-light dark:text-text-dark">

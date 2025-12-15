@@ -41,6 +41,7 @@
 		{ path: '/cuenta/pedidos', label: 'Mis Pedidos', icon: Package },
 		{ path: '/cuenta/direcciones', label: 'Mis Direcciones', icon: MapPin },
 		{ path: '/cuenta/tarjetas', label: 'Mis Tarjetas', icon: CreditCard },
+		{ path: '/cuenta/cupones', label: 'Mis Cupones', icon: CreditCard },
 		{ path: '/cuenta/reembolsos', label: 'Mis Reembolsos', icon: RotateCcw },
 		{ path: '/cuenta/seguridad', label: 'Seguridad', icon: Shield }
 	];
@@ -150,7 +151,7 @@
 			</aside>
 
 			<!-- Contenido Principal -->
-			<main class="min-w-0">
+			<main class="min-w-0 space-y-6 p-2 sm:p-4 lg:p-6">
 				<slot />
 			</main>
 		</div>

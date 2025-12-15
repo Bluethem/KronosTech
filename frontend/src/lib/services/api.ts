@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { apiAuth } from './auth';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -126,6 +127,12 @@ export interface Valoracion {
   imagenes?: string[];
 }
 
+export interface CrearValoracionRequest {
+  calificacion: number;
+  titulo?: string;
+  comentario?: string;
+}
+
 export const catalogoService = {
   async getFamilias(): Promise<Familia[]> {
     const response = await apiClient.get<ApiResponse<Familia[]>>('/familias');
@@ -191,6 +198,14 @@ export const catalogoService = {
 
   async getValoraciones(idProducto: number): Promise<Valoracion[]> {
     const response = await apiClient.get<ApiResponse<Valoracion[]>>(`/productos/${idProducto}/valoraciones`);
+    return response.data.data;
+  },
+
+  async crearValoracion(idProducto: number, payload: CrearValoracionRequest): Promise<Valoracion> {
+    const response = await apiAuth.post<ApiResponse<Valoracion>>(
+      `/productos/${idProducto}/valoraciones`,
+      payload
+    );
     return response.data.data;
   },
 };

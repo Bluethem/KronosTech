@@ -22,3 +22,10 @@ pub struct Valoracion {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub imagenes: Option<Vec<String>>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CrearValoracionRequest {
+    pub calificacion: i32,
+    pub titulo: Option<String>,
+    pub comentario: Option<String>,
+}

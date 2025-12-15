@@ -3,7 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { cart, cartItems, cartSubtotal, clearCart } from '$lib/stores/cart';
 	import { direccionSeleccionada } from '$lib/stores/direccion';
-	import { checkoutService } from '$lib/services/checkout';
+	import { checkoutService, type Venta } from '$lib/services/checkout';
+	import { tarjetaService, type MetodoPagoCliente } from '$lib/services/tarjeta';
+
 	import { cartService } from '$lib/services/cart';
 	import type { MetodoPago } from '$lib/services/checkout';
 
@@ -13,6 +15,14 @@
 	let loading = true;
 	let metodosPago: MetodoPago[] = [];
 	let selectedPaymentId: number | null = null;
+	let metodosPagoCliente: MetodoPagoCliente[] = [];
+	let selectedMetodoPagoClienteId: number | null = null;
+	let ventaConQR: Venta | null = null;
+	let mostrarQR = false;
+	$: qrUrl =
+		ventaConQR?.info_pago?.qr_data
+			? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(ventaConQR.info_pago.qr_data)}`
+			: null;
 
 	// Calcular totales
 	let calculatedTotal: any = null;
@@ -61,7 +71,7 @@
 		globalError = '';
 
 		try {
-			// Cargar métodos de pago
+			// Cargar métodos de pago disponibles
 			metodosPago = await checkoutService.getMetodosPago();
 
 			// Seleccionar el primer método por defecto
@@ -69,11 +79,22 @@
 				selectedPaymentId = metodosPago[0].id_metodo_pago;
 			}
 
+			// Cargar métodos de pago del cliente (tarjetas guardadas)
+			metodosPagoCliente = await tarjetaService.getMetodosPago();
+			if (metodosPagoCliente.length > 0 && !selectedMetodoPagoClienteId) {
+				const predeterminada = metodosPagoCliente.find((m) => m.es_predeterminado);
+				selectedMetodoPagoClienteId =
+					predeterminada?.id_metodo_pago_cliente ?? metodosPagoCliente[0].id_metodo_pago_cliente;
+			}
+
 			// Recuperar cupón aplicado (si existe)
 			const codigoCupon = localStorage.getItem('applied_coupon') || undefined;
 
 			// Calcular total (con cupón si existe)
-			calculatedTotal = await checkoutService.calcularTotal($direccionSeleccionada?.id_direccion, codigoCupon);
+			calculatedTotal = await checkoutService.calcularTotal(
+				$direccionSeleccionada?.id_direccion,
+				codigoCupon
+			);
 		} catch (err: any) {
 			globalError = err.message ?? 'Error al cargar información';
 		} finally {
@@ -98,6 +119,16 @@
 			return false;
 		}
 
+		// Si el método seleccionado es tarjeta, exigir selección de tarjeta del usuario
+		if (
+			selectedPayment &&
+			(selectedPayment.tipo === 'tarjeta_credito' || selectedPayment.tipo === 'tarjeta_debito') &&
+			!selectedMetodoPagoClienteId
+		) {
+			globalError = 'Selecciona una tarjeta para realizar el pago.';
+			return false;
+		}
+
 		if (!$direccionSeleccionada) {
 			globalError = 'No hay dirección de envío seleccionada.';
 			return false;
@@ -111,6 +142,8 @@
 
 		processing = true;
 		globalError = '';
+		ventaConQR = null;
+		mostrarQR = false;
 
 		try {
 			// Recuperar notas de entrega
@@ -124,7 +157,8 @@
 				id_direccion: $direccionSeleccionada!.id_direccion,
 				id_metodo_pago: selectedPaymentId!,
 				notas_cliente: notasEntrega || undefined,
-				codigo_cupon: codigoCupon
+				codigo_cupon: codigoCupon,
+				id_metodo_pago_cliente: selectedMetodoPagoClienteId ?? null
 			});
 
 			// Limpiar carrito, sessionStorage y cupón
@@ -133,8 +167,14 @@
 			sessionStorage.removeItem('notas_entrega');
 			localStorage.removeItem('applied_coupon');
 
-			// Redirigir a confirmación
-			goto(`/pedido/${venta.id_venta}/confirmacion`);
+			// Si el backend devuelve info de pago para Yape/Plin, mostrar QR antes de redirigir
+			if (venta.info_pago && (venta.info_pago.tipo === 'yape' || venta.info_pago.tipo === 'plin')) {
+				ventaConQR = venta;
+				mostrarQR = true;
+			} else {
+				// Redirigir directamente a confirmación
+				goto(`/pedido/${venta.id_venta}/confirmacion`);
+			}
 		} catch (err: any) {
 			globalError = err.message ?? 'Ocurrió un error al procesar el pago.';
 		} finally {
@@ -147,43 +187,43 @@
 	<title>Pago y confirmación | KronosTech</title>
 </svelte:head>
 
-<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+<div class="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-white via-slate-50 to-white text-slate-900">
 	<div class="max-w-6xl mx-auto px-4 lg:px-0 py-8 space-y-6">
 		<!-- STEPPER -->
 		<div class="space-y-4">
-			<div class="flex items-center gap-3 text-xs text-slate-400">
+			<div class="flex items-center gap-3 text-xs text-slate-600">
 				<div class="flex items-center gap-2">
 					<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-semibold">1</div>
 					<span class="font-medium">Carrito</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/70"></div>
+				<div class="h-px flex-1 bg-slate-300"></div>
 				<div class="flex items-center gap-2">
 					<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-semibold">2</div>
 					<span class="font-medium">Dirección</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/70"></div>
+				<div class="h-px flex-1 bg-slate-300"></div>
 				<div class="flex items-center gap-2">
 					<div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-semibold">3</div>
 					<span class="font-medium">Envío</span>
 				</div>
-				<div class="h-px flex-1 bg-slate-700/70"></div>
+				<div class="h-px flex-1 bg-slate-300"></div>
 				<div class="flex items-center gap-2">
-					<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center text-[10px] font-semibold">4</div>
-					<span class="font-semibold text-slate-100">Pago</span>
+					<div class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-semibold">4</div>
+					<span class="font-semibold text-slate-900">Pago</span>
 				</div>
 			</div>
 
 			<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 				<div>
 					<h1 class="text-3xl font-bold tracking-tight">Pago y Confirmación</h1>
-					<p class="text-sm text-slate-400 mt-1">
+					<p class="text-sm text-slate-600 mt-1">
 						Elige tu método de pago, revisa el resumen del pedido y confirma tu compra.
 					</p>
 				</div>
 
 				<button
 					type="button"
-					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+					class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
 					on:click={goBackToShipping}
 				>
 					← Volver a envío
@@ -192,21 +232,21 @@
 		</div>
 
 		{#if globalError}
-			<div class="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+			<div class="rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
 				{globalError}
 			</div>
 		{/if}
 
 		{#if loading}
-			<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 text-center">
-				<p class="text-slate-400">Cargando métodos de pago...</p>
+			<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-8 text-center shadow-sm">
+				<p class="text-slate-600">Cargando métodos de pago...</p>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 lg:grid-cols-[minmax(0,2.1fr),minmax(0,1fr)] gap-6 items-start">
 				<section class="space-y-5">
 					<!-- Métodos de pago -->
-					<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5 space-y-3">
-						<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-1">
+					<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5 space-y-3">
+						<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700 mb-1">
 							Selecciona un método de pago
 						</h2>
 
@@ -216,8 +256,8 @@
 									type="button"
 									class={`w-full text-left rounded-2xl border px-4 py-3 flex items-start gap-3 transition-all ${
 										selectedPaymentId === method.id_metodo_pago
-											? 'border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
-											: 'border-white/10 bg-black/40 hover:bg-white/5'
+											? 'border-blue-500 bg-blue-50 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]'
+											: 'border-slate-200 bg-slate-50 hover:bg-slate-100'
 									}`}
 									on:click={() => (selectedPaymentId = method.id_metodo_pago)}
 								>
@@ -226,7 +266,7 @@
 											class={`w-4 h-4 rounded-full border flex items-center justify-center ${
 												selectedPaymentId === method.id_metodo_pago
 													? 'border-blue-400 bg-blue-500'
-													: 'border-slate-500 bg-black'
+													: 'border-slate-400 bg-white'
 											}`}
 										>
 											{#if selectedPaymentId === method.id_metodo_pago}
@@ -240,7 +280,7 @@
 											{method.nombre}
 										</p>
 										{#if method.descripcion}
-											<p class="text-xs text-slate-300">
+											<p class="text-xs text-slate-700">
 												{method.descripcion}
 											</p>
 										{/if}
@@ -250,7 +290,7 @@
 											</p>
 										{/if}
 										{#if method.comision_porcentaje > 0 || method.comision_fija > 0}
-											<p class="text-[11px] text-amber-400">
+											<p class="text-[11px] text-amber-600">
 												Comisión: {method.comision_porcentaje > 0 ? `${method.comision_porcentaje}%` : ''}
 												{method.comision_fija > 0 ? `+ S/. ${method.comision_fija}` : ''}
 											</p>
@@ -263,23 +303,23 @@
 
 					<!-- Información del método seleccionado -->
 					{#if selectedPayment}
-						<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5 space-y-4">
-							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300">
+						<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5 space-y-4">
+							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">
 								Detalles de pago
 							</h2>
 
-							<div class="rounded-2xl bg-black/40 border border-white/10 px-4 py-3 space-y-2">
+							<div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-2">
 								<p class="text-sm font-semibold">{selectedPayment.nombre}</p>
 								{#if selectedPayment.descripcion}
-									<p class="text-xs text-slate-300">{selectedPayment.descripcion}</p>
+									<p class="text-xs text-slate-700">{selectedPayment.descripcion}</p>
 								{/if}
 								{#if selectedPayment.instrucciones}
-									<p class="text-xs text-slate-400 pt-2 border-t border-white/10">
+									<p class="text-xs text-slate-600 pt-2 border-t border-slate-200">
 										{selectedPayment.instrucciones}
 									</p>
 								{/if}
 								{#if selectedPayment.tiempo_procesamiento}
-									<p class="text-xs text-blue-400">
+									<p class="text-xs text-blue-600">
 										Tiempo de procesamiento: {selectedPayment.tiempo_procesamiento}
 									</p>
 								{/if}
@@ -292,21 +332,21 @@
 					{/if}
 
 					<!-- Aceptar términos -->
-					<div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.45)] p-5">
+					<div class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl shadow-lg p-5">
 						<div class="flex items-start gap-3">
 							<input
 								id="terms"
 								type="checkbox"
-								class="mt-1 rounded border border-white/30 bg-black/40"
+								class="mt-1 rounded border border-slate-300 bg-slate-50"
 								bind:checked={acceptTerms}
 							/>
-							<label for="terms" class="text-sm text-slate-300">
+							<label for="terms" class="text-sm text-slate-700">
 								He leído y acepto los
-								<a href="/terminos" target="_blank" class="text-blue-400 hover:text-blue-300 underline">
+								<a href="/terminos" target="_blank" class="text-blue-600 hover:text-blue-700 underline">
 									Términos y Condiciones
 								</a>
 								y la
-								<a href="/privacidad" target="_blank" class="text-blue-400 hover:text-blue-300 underline">
+								<a href="/privacidad" target="_blank" class="text-blue-600 hover:text-blue-700 underline">
 									Política de Privacidad
 								</a>
 								de KronosTech.
@@ -318,13 +358,13 @@
 				<!-- Resumen -->
 				<aside
 					aria-label="Resumen del pedido"
-					class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-5 space-y-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] sticky top-24"
+					class="rounded-3xl border border-slate-200 bg-white backdrop-blur-xl p-5 space-y-4 shadow-lg sticky top-24"
 				>
 					<h2 class="text-lg font-semibold">Resumen del pedido</h2>
 
 					<div class="space-y-2 text-sm">
 						<div class="flex justify-between">
-							<span class="text-slate-400">
+							<span class="text-slate-600">
 								Subtotal ({$cartItems.length} artículo{$cartItems.length === 1 ? '' : 's'})
 							</span>
 							<span class="font-medium">
@@ -333,19 +373,19 @@
 						</div>
 
 						{#if calculatedTotal?.cupon_aplicado}
-							<div class="flex justify-between items-center text-emerald-400">
+							<div class="flex justify-between items-center text-emerald-600">
 								<span class="text-xs flex items-center gap-1">
 									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
 									Cupón: {calculatedTotal.cupon_aplicado}
 								</span>
-								<span class="font-medium text-emerald-300">
+								<span class="font-medium text-emerald-600">
 									− S/. {calculatedTotal.descuento_cupon?.toFixed(2) || '0.00'}
 								</span>
 							</div>
 						{/if}
 
 						<div class="flex justify-between">
-							<span class="text-slate-400">Descuento total</span>
+							<span class="text-slate-600">Descuento total</span>
 							<span class="font-medium">
 								{#if descuento > 0}
 									− S/. {descuento.toFixed(2)}
@@ -356,13 +396,13 @@
 						</div>
 
 						<div class="flex justify-between items-center">
-							<span class="text-slate-400">Envío</span>
+							<span class="text-slate-600">Envío</span>
 							<span class="font-medium">
 								{costoEnvio === 0 ? 'Gratis' : `S/. ${costoEnvio.toFixed(2)}`}
 							</span>
 						</div>
 
-						<div class="border-t border-white/10 pt-3 mt-2 flex justify-between items-center">
+						<div class="border-t border-slate-200 pt-3 mt-2 flex justify-between items-center">
 							<span class="text-sm font-semibold">Total a pagar</span>
 							<span class="text-xl font-bold">
 								S/. {total.toFixed(2)}
@@ -391,3 +431,45 @@
 		{/if}
 	</div>
 </div>
+
+{#if mostrarQR && ventaConQR && ventaConQR.info_pago && qrUrl}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+		<div class="w-full max-w-sm rounded-3xl bg-white shadow-2xl border border-slate-200 p-6 space-y-4">
+			<h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+				Pago con {ventaConQR.info_pago.tipo === 'yape' ? 'Yape' : 'Plin'}
+			</h2>
+			<p class="text-sm text-slate-700">
+				Escanea este código QR con tu app de {ventaConQR.info_pago.tipo === 'yape' ? 'Yape' : 'Plin'} para completar el
+				pago por <span class="font-semibold">S/. {ventaConQR.info_pago.monto.toFixed(2)}</span>.
+			</p>
+			<div class="flex justify-center py-3">
+				<img src={qrUrl} alt="QR de pago" class="w-56 h-56 rounded-xl border border-slate-200 bg-white" />
+			</div>
+			<p class="text-[11px] text-slate-500 text-center">
+				Una vez realizado el pago podrás continuar a la pantalla de confirmación de tu pedido.
+			</p>
+			<div class="flex gap-3 justify-end pt-2">
+				<button
+					type="button"
+					class="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"
+					on:click={() => {
+						mostrarQR = false;
+					}}
+				>
+					Cerrar
+				</button>
+				<button
+					type="button"
+					class="px-4 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600"
+					on:click={() => {
+						if (ventaConQR) {
+							goto(`/pedido/${ventaConQR.id_venta}/confirmacion`);
+						}
+					}}
+				>
+					Ya pagué, continuar
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

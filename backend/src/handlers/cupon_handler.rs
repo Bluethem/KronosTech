@@ -1,6 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
     Json,
 };
 use chrono::NaiveDateTime;
@@ -9,12 +10,162 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, FromRow};
 
 use crate::models::cupon::{Cupon, CuponListItem, CuponStats};
+use crate::services::AuthService;
 
 #[derive(Debug, Deserialize)]
 pub struct CuponQuery {
     pub search: Option<String>,
     pub tipo: Option<String>,
     pub estado: Option<String>,
+}
+
+// ========== Tipos de respuesta para API de usuario ==========
+
+#[derive(Debug, Serialize)]
+pub struct UserApiResponse<T> {
+    pub success: bool,
+    pub data: Option<T>,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UserErrorResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MisCuponesItem {
+    pub id_cupon: i32,
+    pub codigo: String,
+    pub nombre: String,
+    pub descripcion: Option<String>,
+    pub tipo_cupon: String,
+    pub valor: Decimal,
+    pub fecha_inicio: NaiveDateTime,
+    pub fecha_fin: NaiveDateTime,
+    pub usos_maximos_por_usuario: Option<i32>,
+    pub usos_maximos_totales: Option<i32>,
+    pub usos_actuales: Option<i32>,
+    pub usos_usuario: i64,
+    pub usado: bool,
+    pub fecha_asignacion: NaiveDateTime,
+}
+
+fn extract_user_id_for_cupones(
+    headers: &HeaderMap,
+) -> Result<i32, (StatusCode, Json<UserErrorResponse>)> {
+    let token = headers
+        .get("Authorization")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            if value.starts_with("Bearer ") {
+                Some(&value[7..])
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(UserErrorResponse {
+                    success: false,
+                    message: "Token no proporcionado".to_string(),
+                }),
+            )
+        })?;
+
+    let claims = AuthService::verify_token(token).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(UserErrorResponse {
+                success: false,
+                message: "Token inválido o expirado".to_string(),
+            }),
+        )
+    })?;
+
+    Ok(claims.sub)
+}
+
+// ========== API de cupones para usuario (Mis Cupones) ==========
+
+/// GET /api/cupones/mis - Listar cupones asignados al usuario autenticado
+pub async fn get_mis_cupones(
+    State(pool): State<PgPool>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, (StatusCode, Json<UserErrorResponse>)> {
+    let id_usuario = extract_user_id_for_cupones(&headers)?;
+
+    let rows = sqlx::query!(
+            r#"
+            SELECT
+                c.id_cupon,
+                c.codigo,
+                c.nombre,
+                c.descripcion,
+                c.tipo_cupon::TEXT as "tipo_cupon!",
+                c.valor as "valor!",
+                c.fecha_inicio as "fecha_inicio!: chrono::NaiveDateTime",
+                c.fecha_fin as "fecha_fin!: chrono::NaiveDateTime",
+                c.usos_maximos_por_usuario,
+                c.usos_maximos as usos_maximos_totales,
+                c.usos_actuales,
+                ac.usado as "usado!",
+                ac.fecha_asignacion as "fecha_asignacion!: chrono::NaiveDateTime",
+                (
+                    SELECT COUNT(*)
+                    FROM uso_cupon uc
+                    WHERE uc.id_cupon = c.id_cupon
+                      AND uc.id_usuario = ac.id_usuario
+                ) as "usos_usuario!"
+            FROM cupon c
+            INNER JOIN asignacion_cupon ac ON c.id_cupon = ac.id_cupon
+            WHERE ac.id_usuario = $1
+            ORDER BY c.fecha_fin ASC
+            "#,
+            id_usuario
+        )
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(UserErrorResponse {
+                    success: false,
+                    message: format!("Error al obtener cupones del usuario: {}", e),
+                }),
+            )
+        })?;
+
+    let cupones: Vec<MisCuponesItem> = rows
+        .into_iter()
+        .map(|row| MisCuponesItem {
+            id_cupon: row.id_cupon,
+            codigo: row.codigo,
+            nombre: row.nombre,
+            descripcion: row.descripcion,
+            tipo_cupon: row.tipo_cupon,
+            valor: row.valor,
+            fecha_inicio: row.fecha_inicio,
+            fecha_fin: row.fecha_fin,
+            usos_maximos_por_usuario: row.usos_maximos_por_usuario,
+            usos_maximos_totales: row.usos_maximos_totales,
+            usos_actuales: row.usos_actuales,
+            usos_usuario: row.usos_usuario,
+            usado: row.usado,
+            fecha_asignacion: row.fecha_asignacion,
+        })
+        .collect();
+
+    Ok((
+        StatusCode::OK,
+        Json(UserApiResponse {
+            success: true,
+            data: Some(cupones),
+            message: None,
+        }),
+    ))
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
