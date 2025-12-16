@@ -308,6 +308,63 @@
     return `$${valor}`;
   }
   
+  // Calcular estado real del cupón basado en fechas y campo activo
+  function getEstadoCupon(cupon) {
+    if (!cupon.activo) return 'inactivo';
+    
+    const now = new Date();
+    const inicio = new Date(cupon.fecha_inicio);
+    const fin = new Date(cupon.fecha_fin);
+    
+    if (now > fin) return 'vencido';
+    if (now < inicio) return 'proximo';
+    return 'vigente';
+  }
+  
+  function getEstadoBadgeClass(estado: string) {
+    const map: Record<string, string> = {
+      'vigente': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+      'proximo': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+      'vencido': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+      'inactivo': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'
+    };
+    return map[estado] || map['inactivo'];
+  }
+  
+  function getEstadoLabel(estado: string) {
+    const map: Record<string, string> = {
+      'vigente': 'Vigente',
+      'proximo': 'Próximo',
+      'vencido': 'Vencido',
+      'inactivo': 'Inactivo'
+    };
+    return map[estado] || estado;
+  }
+  
+  function getRestricciones(cupon) {
+    const restricciones: string[] = [];
+    
+    if (cupon.compra_minima && cupon.compra_minima > 0) {
+      restricciones.push(`Min: $${cupon.compra_minima}`);
+    }
+    if (cupon.solo_nuevos_usuarios) {
+      restricciones.push('Nuevos usuarios');
+    }
+    if (cupon.solo_primera_compra) {
+      restricciones.push('1ra compra');
+    }
+    if (cupon.usos_maximos_por_usuario) {
+      restricciones.push(`${cupon.usos_maximos_por_usuario} uso/usuario`);
+    }
+    
+    return restricciones.length > 0 ? restricciones : ['Sin restricciones'];
+  }
+
+  function getRestriccionesText(cupon) {
+    const restricciones = getRestricciones(cupon);
+    return restricciones.join(' · ');
+  }
+  
   // Debounce search
   let searchTimeout;
   function handleSearch() {
@@ -377,63 +434,62 @@
           </div>
         </div>
         <!-- Table -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-              <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500 dark:text-slate-400 uppercase">
-                <tr>
-                  <th class="px-6 py-3" scope="col">Código</th>
-                  <th class="px-6 py-3" scope="col">Nombre</th>
-                  <th class="px-6 py-3" scope="col">Tipo</th>
-                  <th class="px-6 py-3" scope="col">Valor</th>
-                  <th class="px-6 py-3" scope="col">Vigencia</th>
-                  <th class="px-6 py-3" scope="col">Usos</th>
-                  <th class="px-6 py-3" scope="col">Restricciones</th>
-                  <th class="px-6 py-3" scope="col"><span class="sr-only">Acciones</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each cupones as cupon}
-                <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td class="px-6 py-4">
-                    <div class="group relative flex items-center">
-                      <span class="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded px-2 py-1 text-xs font-semibold">{cupon.codigo}</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">{cupon.nombre}</td>
-                  <td class="px-6 py-4"><span class="{getTipoBadgeClass(cupon.tipo_cupon)} text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{getTipoLabel(cupon.tipo_cupon)}</span></td>
-                  <td class="px-6 py-4">{formatValor(cupon.tipo_cupon, cupon.valor)}</td>
-                  <td class="px-6 py-4">{formatDate(cupon.fecha_inicio)} - {formatDate(cupon.fecha_fin)}</td>
-                  <td class="px-6 py-4">
-                    <div class="flex items-center gap-2">
-                      <div class="w-20 h-2 bg-slate-200 dark:bg-slate-700 rounded-full">
-                        <div class="h-2 bg-primary rounded-full" style="width: {cupon.usos_maximos_totales ? (cupon.usos_actuales / cupon.usos_maximos_totales * 100) : 0}%"></div>
-                      </div>
-                      <span>{cupon.usos_actuales || 0}{cupon.usos_maximos_totales ? `/${cupon.usos_maximos_totales}` : ''}</span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <span class="bg-slate-100 text-slate-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full dark:bg-slate-700 dark:text-slate-300">{cupon.activo ? 'Activo' : 'Inactivo'}</span>
-                  </td>
-                  <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end gap-1">
-                      <button on:click={() => openDetailsSidebar(cupon)} class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary" title="Ver detalles"><span class="material-symbols-outlined text-lg">visibility</span></button>
-                      <a href="/gestion-cupones/editar/{cupon.id_cupon}" class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary" title="Editar"><span class="material-symbols-outlined text-lg">edit</span></a>
-                      <button on:click={() => deleteCupon(cupon)} class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500" title="Eliminar"><span class="material-symbols-outlined text-lg">delete</span></button>
-                    </div>
-                  </td>
-                </tr>
-                {/each}
-                {#if cupones.length === 0}
-                <tr>
-                  <td colspan="8" class="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
-                    No se encontraron cupones
-                  </td>
-                </tr>
-                {/if}
-              </tbody>
-            </table>
-          </div>
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500 dark:text-slate-400 uppercase">
+              <tr>
+                <th class="px-4 py-3" scope="col">Código</th>
+                <th class="px-4 py-3" scope="col">Nombre</th>
+                <th class="px-4 py-3 text-center" scope="col">Tipo</th>
+                <th class="px-4 py-3 text-center" scope="col">Valor</th>
+                <th class="px-4 py-3 text-center" scope="col">Vigencia</th>
+                <th class="px-4 py-3 text-center" scope="col">Usos</th>
+                <th class="px-4 py-3 text-center" scope="col">Estado</th>
+                <th class="px-4 py-3 text-right" scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each cupones as cupon (cupon.id_cupon)}
+              <tr class="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <td class="px-4 py-3">
+                  <span class="font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded px-2 py-1 text-xs font-semibold">{cupon.codigo}</span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="font-medium text-slate-900 dark:text-white">{cupon.nombre}</div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400">{getRestriccionesText(cupon)}</div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="{getTipoBadgeClass(cupon.tipo_cupon)} text-xs font-medium px-2 py-0.5 rounded-full">{getTipoLabel(cupon.tipo_cupon)}</span>
+                </td>
+                <td class="px-4 py-3 text-center font-semibold">{formatValor(cupon.tipo_cupon, cupon.valor)}</td>
+                <td class="px-4 py-3 text-center text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                  <div>{formatDate(cupon.fecha_inicio)}</div>
+                  <div>{formatDate(cupon.fecha_fin)}</div>
+                </td>
+                <td class="px-4 py-3 text-center text-sm">{cupon.usos_actuales || 0}{cupon.usos_maximos_totales ? `/${cupon.usos_maximos_totales}` : ''}</td>
+                <td class="px-4 py-3 text-center">
+                  <span class="{getEstadoBadgeClass(getEstadoCupon(cupon))} text-xs font-medium px-2.5 py-1 rounded-full">
+                    {getEstadoLabel(getEstadoCupon(cupon))}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-end gap-1">
+                    <button on:click={() => openDetailsSidebar(cupon)} class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-primary transition-colors" title="Ver detalles"><span class="material-symbols-outlined text-xl">visibility</span></button>
+                    <a href="/gestion-cupones/editar/{cupon.id_cupon}" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-primary transition-colors" title="Editar"><span class="material-symbols-outlined text-xl">edit</span></a>
+                    <button on:click={() => deleteCupon(cupon)} class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-red-500 transition-colors" title="Eliminar"><span class="material-symbols-outlined text-xl">delete</span></button>
+                  </div>
+                </td>
+              </tr>
+              {/each}
+              {#if cupones.length === 0}
+              <tr>
+                <td colspan="8" class="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
+                  No se encontraron cupones
+                </td>
+              </tr>
+              {/if}
+            </tbody>
+          </table>
           <!-- Pagination -->
           <nav aria-label="Table navigation" class="flex items-center justify-between p-4">
             <span class="text-sm font-normal text-slate-500 dark:text-slate-400">
@@ -1227,8 +1283,8 @@
                 <div>
                   <dt class="text-sm font-medium text-slate-500 dark:text-slate-400">Estado</dt>
                   <dd class="mt-1">
-                    <span class="{selectedCupon.activo ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'} text-xs font-medium px-2.5 py-0.5 rounded-full">
-                      {selectedCupon.activo ? 'Activo' : 'Inactivo'}
+                    <span class="{getEstadoBadgeClass(getEstadoCupon(selectedCupon))} text-xs font-medium px-2.5 py-0.5 rounded-full">
+                      {getEstadoLabel(getEstadoCupon(selectedCupon))}
                     </span>
                   </dd>
                 </div>

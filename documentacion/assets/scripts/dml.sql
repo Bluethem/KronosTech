@@ -105,21 +105,28 @@ INSERT INTO producto (nombre, descripcion, id_categoria, id_subcategoria, especi
 -- 6. PRODUCTOS DETALLE
 -- ============================================================================
 
-INSERT INTO producto_detalle (nombre, modelo, sku, id_producto, id_marca, precio_base, precio_venta, costo, peso, garantia_meses, es_destacado, es_nuevo, estado) VALUES
-('Intel Core i5-13600K Box', 'BX8071513600K', 'CPU-INTL-I5-13600K', 1, 1, 1599.00, 1499.00, 1200.00, 0.5, 36, TRUE, FALSE, 'activo'),
-('Intel Core i7-13700K Box', 'BX8071513700K', 'CPU-INTL-I7-13700K', 2, 1, 2199.00, 2099.00, 1700.00, 0.5, 36, TRUE, FALSE, 'activo'),
-('AMD Ryzen 5 7600X Box', '100-100000593WOF', 'CPU-AMD-R5-7600X', 3, 2, 1399.00, 1299.00, 1000.00, 0.5, 36, FALSE, FALSE, 'activo'),
-('AMD Ryzen 7 7700X Box', '100-100000591WOF', 'CPU-AMD-R7-7700X', 4, 2, 1899.00, 1799.00, 1450.00, 0.5, 36, TRUE, FALSE, 'activo'),
-('ASUS RTX 4060 TUF Gaming', 'TUF-RTX4060-O8G-GAMING', 'GPU-ASUS-RTX4060-TUF', 5, 4, 1899.00, 1799.00, 1400.00, 1.2, 36, TRUE, FALSE, 'activo'),
-('MSI RTX 4060 Gaming X', 'RTX 4060 GAMING X 8G', 'GPU-MSI-RTX4060-GX', 5, 5, 1849.00, 1749.00, 1350.00, 1.1, 36, FALSE, FALSE, 'activo'),
-('ASUS RTX 4070 ROG Strix', 'ROG-STRIX-RTX4070-O12G', 'GPU-ASUS-RTX4070-STRIX', 6, 4, 3299.00, 3199.00, 2600.00, 1.5, 36, TRUE, TRUE, 'activo'),
-('MSI RTX 4070 Gaming X Trio', 'RTX 4070 GAMING X TRIO 12G', 'GPU-MSI-RTX4070-GXT', 6, 5, 3199.00, 3099.00, 2500.00, 1.4, 36, TRUE, FALSE, 'activo'),
-('Corsair Vengeance DDR5 32GB', 'CMK32GX5M2B5600C36', 'RAM-CORS-DDR5-32GB', 7, 6, 699.00, 649.00, 500.00, 0.2, 24, FALSE, FALSE, 'activo'),
-('Corsair Vengeance DDR5 16GB', 'CMK16GX5M2B5600C36', 'RAM-CORS-DDR5-16GB', 7, 6, 399.00, 349.00, 270.00, 0.1, 24, TRUE, FALSE, 'activo'),
-('Samsung 980 PRO 1TB', 'MZ-V8P1T0BW', 'SSD-SAM-980PRO-1TB', 8, 7, 699.00, 649.00, 500.00, 0.08, 60, TRUE, FALSE, 'activo'),
-('Samsung 980 PRO 2TB', 'MZ-V8P2T0BW', 'SSD-SAM-980PRO-2TB', 8, 7, 1199.00, 1149.00, 900.00, 0.08, 60, TRUE, FALSE, 'activo'),
-('Logitech G Pro X TKL', 'G-PKB-003', 'KBD-LOGI-GPROX-TKL', 9, 8, 799.00, 749.00, 600.00, 0.8, 24, TRUE, FALSE, 'activo'),
-('Razer DeathAdder V3 Pro', 'RZ01-04630100-R3U1', 'MOU-RAZ-DAV3-PRO', 10, 9, 649.00, 599.00, 450.00, 0.06, 24, TRUE, FALSE, 'activo');
+INSERT INTO producto_detalle (nombre, modelo, sku, id_producto, id_marca, precio_base, precio_venta, costo, peso, garantia_meses, es_destacado, es_nuevo, estado, imagen_principal) VALUES
+-- CPUs Intel (imagen de procesador)
+('Intel Core i5-13600K Box', 'BX8071513600K', 'CPU-INTL-I5-13600K', 1, 1, 1599.00, 1499.00, 1200.00, 0.5, 36, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&h=300&fit=crop'),
+('Intel Core i7-13700K Box', 'BX8071513700K', 'CPU-INTL-I7-13700K', 2, 1, 2199.00, 2099.00, 1700.00, 0.5, 36, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1555617981-dac3880eac6e?w=400&h=300&fit=crop'),
+-- CPUs AMD (imagen de procesador AMD)
+('AMD Ryzen 5 7600X Box', '100-100000593WOF', 'CPU-AMD-R5-7600X', 3, 2, 1399.00, 1299.00, 1000.00, 0.5, 36, FALSE, FALSE, 'activo', 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop'),
+('AMD Ryzen 7 7700X Box', '100-100000591WOF', 'CPU-AMD-R7-7700X', 4, 2, 1899.00, 1799.00, 1450.00, 0.5, 36, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&h=300&fit=crop'),
+-- GPUs (imágenes de tarjetas gráficas)
+('ASUS RTX 4060 TUF Gaming', 'TUF-RTX4060-O8G-GAMING', 'GPU-ASUS-RTX4060-TUF', 5, 4, 1899.00, 1799.00, 1400.00, 1.2, 36, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=400&h=300&fit=crop'),
+('ASUS RTX 4070 ROG Strix', 'ROG-STRIX-RTX4070-O12G', 'GPU-ASUS-RTX4070-STRIX', 6, 4, 3299.00, 3199.00, 2600.00, 1.5, 36, TRUE, TRUE, 'activo', 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=400&h=300&fit=crop'),
+('MSI RTX 4060 Gaming X', 'RTX 4060 GAMING X 8G', 'GPU-MSI-RTX4060-GX', 5, 5, 1849.00, 1749.00, 1350.00, 1.1, 36, FALSE, FALSE, 'activo', 'https://images.unsplash.com/photo-1623820919239-0d0ff10797a1?w=400&h=300&fit=crop'),
+('MSI RTX 4070 Gaming X Trio', 'RTX 4070 GAMING X TRIO 12G', 'GPU-MSI-RTX4070-GXT', 6, 5, 3199.00, 3099.00, 2500.00, 1.4, 36, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=400&h=300&fit=crop'),
+-- RAM Corsair (imágenes de memoria RAM)
+('Corsair Vengeance DDR5 32GB', 'CMK32GX5M2B5600C36', 'RAM-CORS-DDR5-32GB', 7, 6, 699.00, 649.00, 500.00, 0.2, 24, FALSE, FALSE, 'activo', 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=400&h=300&fit=crop'),
+('Corsair Vengeance DDR5 16GB', 'CMK16GX5M2B5600C36', 'RAM-CORS-DDR5-16GB', 7, 6, 399.00, 349.00, 270.00, 0.1, 24, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=400&h=300&fit=crop'),
+-- SSD Samsung (imágenes de SSD/almacenamiento)
+('Samsung 980 PRO 1TB', 'MZ-V8P1T0BW', 'SSD-SAM-980PRO-1TB', 8, 7, 699.00, 649.00, 500.00, 0.08, 60, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=400&h=300&fit=crop'),
+('Samsung 980 PRO 2TB', 'MZ-V8P2T0BW', 'SSD-SAM-980PRO-2TB', 8, 7, 1199.00, 1149.00, 900.00, 0.08, 60, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=400&h=300&fit=crop'),
+-- Teclado gaming
+('Logitech G Pro X TKL', 'G-PKB-003', 'KBD-LOGI-GPROX-TKL', 9, 8, 799.00, 749.00, 600.00, 0.8, 24, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&h=300&fit=crop'),
+-- Mouse gaming
+('Razer DeathAdder V3 Pro', 'RZ01-04630100-R3U1', 'MOU-RAZ-DAV3-PRO', 10, 9, 649.00, 599.00, 450.00, 0.06, 24, TRUE, FALSE, 'activo', 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=300&fit=crop');
 
 -- ============================================================================
 -- 7. INVENTARIO
@@ -218,6 +225,83 @@ INSERT INTO metodo_pago (nombre, tipo, proveedor, descripcion, comision_porcenta
 ('Plin', 'billetera_digital', 'Plin', 'Pago mediante Plin', 0, 'Inmediato', 5),
 ('Transferencia Bancaria', 'transferencia', NULL, 'Transferencia desde cualquier banco', 0, '1-2 días', 6),
 ('Contra Reembolso', 'contrareembolso', NULL, 'Pago al recibir el producto', 0, 'Al entregar', 7);
+
+-- ============================================================================
+-- 14. CONFIGURACIÓN DEL SISTEMA
+-- ============================================================================
+
+INSERT INTO configuracion_sistema (clave, valor, tipo, descripcion, categoria) VALUES
+-- General
+('site_name', 'KronosTech', 'string', 'Nombre del sitio', 'general'),
+('site_description', 'Tu tienda de tecnología de confianza', 'string', 'Descripción del sitio', 'general'),
+('support_email', 'soporte@kronostech.com', 'string', 'Email de soporte', 'general'),
+('contact_phone', '+51 999 999 999', 'string', 'Teléfono de contacto', 'general'),
+
+-- E-commerce
+('currency', 'PEN', 'string', 'Moneda del sistema', 'ecommerce'),
+('tax_rate', '18', 'number', 'Tasa de impuesto (IGV)', 'ecommerce'),
+('free_shipping_threshold', '100', 'number', 'Umbral para envío gratis (S/.)', 'ecommerce'),
+('low_stock_threshold', '10', 'number', 'Umbral de alerta de stock bajo', 'ecommerce'),
+
+-- Envío
+('default_shipping_cost', '15', 'number', 'Costo de envío estándar (S/.)', 'envio'),
+('express_shipping_cost', '35', 'number', 'Costo de envío express (S/.)', 'envio'),
+('estimated_delivery_days', '3', 'number', 'Días estimados de entrega', 'envio'),
+
+-- Seguridad
+('session_timeout', '24', 'number', 'Duración de sesión en horas', 'seguridad'),
+('max_login_attempts', '5', 'number', 'Máximo intentos de login antes de bloqueo', 'seguridad'),
+('password_min_length', '6', 'number', 'Longitud mínima de contraseña', 'seguridad'),
+
+-- Funcionalidades
+('allow_guest_checkout', 'true', 'boolean', 'Permitir compra sin registro', 'funcionalidades'),
+('require_email_verification', 'false', 'boolean', 'Requerir verificación de email', 'funcionalidades'),
+('enable_reviews', 'true', 'boolean', 'Habilitar valoraciones', 'funcionalidades'),
+('enable_wishlist', 'true', 'boolean', 'Habilitar lista de deseos', 'funcionalidades'),
+('enable_coupons', 'true', 'boolean', 'Habilitar cupones', 'funcionalidades'),
+
+-- Email
+('email_enabled', 'true', 'boolean', 'Habilitar envío de emails', 'email'),
+('smtp_host', 'smtp.gmail.com', 'string', 'Servidor SMTP', 'email'),
+('smtp_port', '587', 'number', 'Puerto SMTP', 'email'),
+('smtp_user', 'noreply@kronostech.com', 'string', 'Usuario SMTP', 'email');
+
+-- ============================================================================
+-- 15. LOGS DE AUDITORÍA (DATOS DE PRUEBA)
+-- ============================================================================
+
+INSERT INTO log_auditoria (nivel, accion, detalles, modulo, id_usuario, email_usuario, ip_cliente, fecha_creacion) VALUES
+-- Logs de autenticación
+('success', 'Login exitoso', 'Usuario admin@kronostech.pe (super_admin) inició sesión', 'Autenticación', 1, 'admin@kronostech.pe', '192.168.1.100', CURRENT_TIMESTAMP - INTERVAL '2 hours'),
+('success', 'Login exitoso', 'Usuario maria.lopez@kronostech.pe (administrador) inició sesión', 'Autenticación', 2, 'maria.lopez@kronostech.pe', '192.168.1.101', CURRENT_TIMESTAMP - INTERVAL '1 hour 45 minutes'),
+('success', 'Login exitoso', 'Usuario juan.perez@gmail.com (cliente) inició sesión', 'Autenticación', 3, 'juan.perez@gmail.com', '201.234.56.78', CURRENT_TIMESTAMP - INTERVAL '1 hour 30 minutes'),
+('warning', 'Intento de login fallido', 'Intento fallido de login para usuario@inexistente.com: Usuario no encontrado', 'Seguridad', NULL, 'usuario@inexistente.com', '45.67.89.10', CURRENT_TIMESTAMP - INTERVAL '1 hour 15 minutes'),
+('success', 'Nuevo registro', 'Nuevo usuario registrado: ana.garcia@outlook.com (Ana García)', 'Autenticación', 4, 'ana.garcia@outlook.com', '189.123.45.67', CURRENT_TIMESTAMP - INTERVAL '1 hour'),
+
+-- Logs de sistema
+('info', 'Sistema iniciado', 'Panel de administración cargado correctamente', 'Sistema', 1, 'admin@kronostech.pe', '192.168.1.100', CURRENT_TIMESTAMP - INTERVAL '55 minutes'),
+('info', 'Configuración actualizada', 'Parámetros de envío actualizados: costo estándar S/. 15, express S/. 30', 'Configuración', 1, 'admin@kronostech.pe', '192.168.1.100', CURRENT_TIMESTAMP - INTERVAL '50 minutes'),
+('success', 'Backup completado', 'Backup de base de datos completado exitosamente (45 MB)', 'Sistema', NULL, 'Sistema', NULL, CURRENT_TIMESTAMP - INTERVAL '45 minutes'),
+
+-- Logs de usuarios
+('info', 'Usuario actualizado', 'Se actualizó el rol del usuario juan.perez@gmail.com a cliente', 'Usuarios', 1, 'admin@kronostech.pe', '192.168.1.100', CURRENT_TIMESTAMP - INTERVAL '40 minutes'),
+('warning', 'Usuario desactivado', 'Se desactivó temporalmente la cuenta de pedro.martinez@hotmail.com', 'Usuarios', 1, 'admin@kronostech.pe', '192.168.1.100', CURRENT_TIMESTAMP - INTERVAL '35 minutes'),
+
+-- Logs de ventas
+('success', 'Venta completada', 'Pedido PED-20241215-00000001 completado por S/. 1,250.00', 'Ventas', 3, 'juan.perez@gmail.com', '201.234.56.78', CURRENT_TIMESTAMP - INTERVAL '30 minutes'),
+('info', 'Pedido enviado', 'Pedido PED-20241215-00000001 marcado como enviado. Tracking: TRK123456', 'Ventas', 2, 'maria.lopez@kronostech.pe', '192.168.1.101', CURRENT_TIMESTAMP - INTERVAL '25 minutes'),
+
+-- Logs de inventario
+('warning', 'Stock bajo', 'Producto SKU-AMD-R5-5600X tiene stock bajo: 3 unidades disponibles', 'Inventario', NULL, 'Sistema', NULL, CURRENT_TIMESTAMP - INTERVAL '20 minutes'),
+('info', 'Movimiento de inventario', 'Entrada de 50 unidades de SKU-NVIDIA-RTX4070. Stock actualizado: 75', 'Inventario', 2, 'maria.lopez@kronostech.pe', '192.168.1.101', CURRENT_TIMESTAMP - INTERVAL '15 minutes'),
+
+-- Logs de productos
+('success', 'Producto creado', 'Nuevo producto agregado: AMD Ryzen 7 7800X3D (SKU: SKU-AMD-R7-7800X3D)', 'Productos', 2, 'maria.lopez@kronostech.pe', '192.168.1.101', CURRENT_TIMESTAMP - INTERVAL '10 minutes'),
+('info', 'Precio actualizado', 'Precio del producto SKU-NVIDIA-RTX4090 actualizado de S/. 8,999.00 a S/. 8,499.00', 'Productos', 2, 'maria.lopez@kronostech.pe', '192.168.1.101', CURRENT_TIMESTAMP - INTERVAL '5 minutes'),
+
+-- Logs de seguridad
+('security', 'Múltiples intentos fallidos', 'Se detectaron 5 intentos fallidos de login desde IP 45.67.89.10', 'Seguridad', NULL, 'Sistema', '45.67.89.10', CURRENT_TIMESTAMP - INTERVAL '3 minutes'),
+('error', 'Error de conexión', 'Error temporal de conexión con pasarela de pago. Reintentos: 3', 'Sistema', NULL, 'Sistema', NULL, CURRENT_TIMESTAMP - INTERVAL '1 minute');
 
 -- ============================================================================
 -- FIN DEL SCRIPT DML

@@ -36,6 +36,8 @@ pub mod envio;
 pub mod imagen_valoracion;
 pub mod notificacion;
 pub mod lista_deseos;
+pub mod log_auditoria;
+pub mod configuracion;
 
 // Re-exportaciones para uso interno
 pub use subcategoria::Subcategoria;
@@ -70,3 +72,5 @@ pub use envio::Envio;
 pub use imagen_valoracion::ImagenValoracion;
 pub use notificacion::Notificacion;
 pub use lista_deseos::ListaDeseos;
+pub use log_auditoria::{LogAuditoria, CrearLogRequest, FiltrarLogsQuery, LogResponse};
+pub use configuracion::{ConfiguracionSistema, ActualizarConfigRequest, ActualizarConfigBatchRequest};

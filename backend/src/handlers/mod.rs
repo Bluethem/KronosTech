@@ -16,6 +16,8 @@ pub mod producto_handler;
 pub mod descuento_handler;
 pub mod cupon_handler;
 pub mod reembolso_handler;
+pub mod log_handler;
+pub mod config_handler;
 
 // Re-exportaciones para uso en routes - Catálogo
 pub use catalogo_handler::*;

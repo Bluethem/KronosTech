@@ -22,14 +22,39 @@
   
   // UI state
   let productos: Array<{id_producto_detalle: number, nombre: string}> = [];
+  let categorias: Array<{id_categoria: number, nombre: string}> = [];
+  let marcas: Array<{id_marca: number, nombre: string}> = [];
   let loading = false;
   let loadingData = true;
   let errorMessage = '';
   let successMessage = '';
   
+  // Estado original para revertir
+  interface DatosOriginales {
+    nombre: string;
+    descripcion: string;
+    tipoDescuento: string;
+    valor: string;
+    aplicaA: string;
+    idReferencia: number | null;
+    compraMinima: string;
+    cantidadMinima: string;
+    usosMaximos: string;
+    fechaInicio: string;
+    fechaFin: string;
+    activo: boolean;
+    referenciaNombre?: string;
+  }
+  let datosOriginales: DatosOriginales | null = null;
+  let showConfirmModal = false;
+  let cambiosPendientes: {campo: string, antes: string, despues: string}[] = [];
+  let hayCambios = false;
+  
   onMount(async () => {
     await Promise.all([
       fetchProductos(),
+      fetchCategorias(),
+      fetchMarcas(),
       loadDescuentoData()
     ]);
   });
@@ -55,6 +80,23 @@
         fechaInicio = formatDateTimeForInput(data.fecha_inicio);
         fechaFin = formatDateTimeForInput(data.fecha_fin);
         activo = data.activo ?? true;
+        
+        // Guardar datos originales para poder revertir
+        datosOriginales = {
+          nombre,
+          descripcion,
+          tipoDescuento,
+          valor,
+          aplicaA,
+          idReferencia,
+          compraMinima,
+          cantidadMinima,
+          usosMaximos,
+          fechaInicio,
+          fechaFin,
+          activo,
+          referenciaNombre: data.referencia_nombre
+        };
       } else {
         errorMessage = 'Error al cargar el descuento';
       }
@@ -64,6 +106,134 @@
     } finally {
       loadingData = false;
     }
+  }
+  
+  // Detectar cambios reactivamente
+  $: if (datosOriginales) {
+    hayCambios = 
+      nombre !== datosOriginales.nombre ||
+      descripcion !== datosOriginales.descripcion ||
+      tipoDescuento !== datosOriginales.tipoDescuento ||
+      valor !== datosOriginales.valor ||
+      aplicaA !== datosOriginales.aplicaA ||
+      idReferencia !== datosOriginales.idReferencia ||
+      compraMinima !== datosOriginales.compraMinima ||
+      cantidadMinima !== datosOriginales.cantidadMinima ||
+      usosMaximos !== datosOriginales.usosMaximos ||
+      fechaInicio !== datosOriginales.fechaInicio ||
+      fechaFin !== datosOriginales.fechaFin ||
+      activo !== datosOriginales.activo;
+  }
+  
+  function revertirCambios() {
+    if (!datosOriginales) return;
+    
+    nombre = datosOriginales.nombre;
+    descripcion = datosOriginales.descripcion;
+    tipoDescuento = datosOriginales.tipoDescuento;
+    valor = datosOriginales.valor;
+    aplicaA = datosOriginales.aplicaA;
+    idReferencia = datosOriginales.idReferencia;
+    compraMinima = datosOriginales.compraMinima;
+    cantidadMinima = datosOriginales.cantidadMinima;
+    usosMaximos = datosOriginales.usosMaximos;
+    fechaInicio = datosOriginales.fechaInicio;
+    fechaFin = datosOriginales.fechaFin;
+    activo = datosOriginales.activo;
+    
+    successMessage = 'Cambios revertidos correctamente';
+    setTimeout(() => successMessage = '', 3000);
+  }
+  
+  function calcularCambios(): {campo: string, antes: string, despues: string}[] {
+    if (!datosOriginales) return [];
+    
+    const cambios: {campo: string, antes: string, despues: string}[] = [];
+    
+    if (nombre !== datosOriginales.nombre) {
+      cambios.push({ campo: 'Nombre', antes: datosOriginales.nombre, despues: nombre });
+    }
+    if (descripcion !== datosOriginales.descripcion) {
+      cambios.push({ campo: 'Descripción', antes: datosOriginales.descripcion || '(vacío)', despues: descripcion || '(vacío)' });
+    }
+    if (tipoDescuento !== datosOriginales.tipoDescuento) {
+      cambios.push({ campo: 'Tipo', antes: datosOriginales.tipoDescuento, despues: tipoDescuento });
+    }
+    if (valor !== datosOriginales.valor) {
+      cambios.push({ campo: 'Valor', antes: datosOriginales.valor, despues: valor });
+    }
+    if (aplicaA !== datosOriginales.aplicaA) {
+      cambios.push({ campo: 'Aplica a', antes: datosOriginales.aplicaA, despues: aplicaA });
+    }
+    if (idReferencia !== datosOriginales.idReferencia) {
+      const nombreAntes = obtenerNombreReferencia(datosOriginales.aplicaA, datosOriginales.idReferencia) || datosOriginales.referenciaNombre || '(ninguno)';
+      const nombreDespues = obtenerNombreReferencia(aplicaA, idReferencia) || '(ninguno)';
+      cambios.push({ campo: 'Referencia específica', antes: nombreAntes, despues: nombreDespues });
+    }
+    if (compraMinima !== datosOriginales.compraMinima) {
+      cambios.push({ campo: 'Compra mínima', antes: datosOriginales.compraMinima || '(sin límite)', despues: compraMinima || '(sin límite)' });
+    }
+    if (cantidadMinima !== datosOriginales.cantidadMinima) {
+      cambios.push({ campo: 'Cantidad mínima', antes: datosOriginales.cantidadMinima || '(sin límite)', despues: cantidadMinima || '(sin límite)' });
+    }
+    if (usosMaximos !== datosOriginales.usosMaximos) {
+      cambios.push({ campo: 'Usos máximos', antes: datosOriginales.usosMaximos || 'Ilimitado', despues: usosMaximos || 'Ilimitado' });
+    }
+    if (fechaInicio !== datosOriginales.fechaInicio) {
+      cambios.push({ campo: 'Fecha inicio', antes: formatDateTimeDisplay(datosOriginales.fechaInicio), despues: formatDateTimeDisplay(fechaInicio) });
+    }
+    if (fechaFin !== datosOriginales.fechaFin) {
+      cambios.push({ campo: 'Fecha fin', antes: formatDateTimeDisplay(datosOriginales.fechaFin), despues: formatDateTimeDisplay(fechaFin) });
+    }
+    if (activo !== datosOriginales.activo) {
+      cambios.push({ campo: 'Estado', antes: datosOriginales.activo ? 'Activo' : 'Inactivo', despues: activo ? 'Activo' : 'Inactivo' });
+    }
+    
+    return cambios;
+  }
+  
+  function obtenerNombreReferencia(tipo: string, id: number | null): string | null {
+    if (!id) return null;
+    
+    if (tipo === 'Producto') {
+      const producto = productos.find(p => p.id_producto_detalle === id);
+      return producto?.nombre || null;
+    }
+    if (tipo === 'Categoría') {
+      const categoria = categorias.find(c => c.id_categoria === id);
+      return categoria?.nombre || null;
+    }
+    if (tipo === 'Marca') {
+      const marca = marcas.find(m => m.id_marca === id);
+      return marca?.nombre || null;
+    }
+    return null;
+  }
+  
+  function formatDateTimeDisplay(dateString: string): string {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-PE', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+  
+  function mostrarConfirmacion() {
+    cambiosPendientes = calcularCambios();
+    if (cambiosPendientes.length === 0) {
+      errorMessage = 'No hay cambios para guardar';
+      return;
+    }
+    showConfirmModal = true;
+  }
+  
+  function cerrarModal() {
+    showConfirmModal = false;
+    cambiosPendientes = [];
   }
   
   function mapTipoDescuentoFromDB(tipo: string): string {
@@ -103,6 +273,30 @@
     }
   }
   
+  async function fetchCategorias() {
+    try {
+      const response = await fetch('http://localhost:3000/api/categorias');
+      if (response.ok) {
+        const data = await response.json();
+        categorias = data.data || data || [];
+      }
+    } catch (e) {
+      console.error('Error fetching categorias:', e);
+    }
+  }
+  
+  async function fetchMarcas() {
+    try {
+      const response = await fetch('http://localhost:3000/api/marcas');
+      if (response.ok) {
+        const data = await response.json();
+        marcas = data.data || data || [];
+      }
+    } catch (e) {
+      console.error('Error fetching marcas:', e);
+    }
+  }
+  
   function validateForm(): string | null {
     if (!nombre.trim()) {
       return 'El nombre es requerido';
@@ -116,8 +310,8 @@
       return 'El porcentaje no puede ser mayor a 100';
     }
     
-    if (aplicaA === 'Producto' && !idReferencia) {
-      return 'Debe seleccionar un producto específico';
+    if ((aplicaA === 'Producto' || aplicaA === 'Categoría' || aplicaA === 'Marca') && !idReferencia) {
+      return `Debe seleccionar ${aplicaA === 'Producto' ? 'un producto' : aplicaA === 'Categoría' ? 'una categoría' : 'una marca'} específica`;
     }
     
     if (!fechaInicio) {
@@ -135,7 +329,7 @@
     return null;
   }
   
-  async function handleSubmit() {
+  function iniciarGuardado() {
     errorMessage = '';
     successMessage = '';
     
@@ -145,6 +339,12 @@
       return;
     }
     
+    // Mostrar modal de confirmación con cambios
+    mostrarConfirmacion();
+  }
+  
+  async function handleSubmit() {
+    cerrarModal();
     loading = true;
     
     try {
@@ -158,7 +358,7 @@
       
       // Map frontend values to database ENUM values
       const mapTipoDescuento = (tipo: string) => {
-        const map = {
+        const map: Record<string, string> = {
           'Porcentaje': 'porcentaje',
           'Monto Fijo': 'monto_fijo',
           'Envío Gratis': 'envio_gratis'
@@ -167,7 +367,7 @@
       };
       
       const mapAplicaA = (aplica: string) => {
-        const map = {
+        const map: Record<string, string> = {
           'Global': 'global',
           'Producto': 'producto',
           'Categoría': 'categoria',
@@ -177,13 +377,19 @@
         return map[aplica] || aplica.toLowerCase();
       };
       
+      // Determinar id_referencia según el tipo de aplicación
+      let refId: number | null = null;
+      if (aplicaA === 'Producto' || aplicaA === 'Categoría' || aplicaA === 'Marca') {
+        refId = idReferencia;
+      }
+      
       const payload = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim() || null,
         tipo_descuento: mapTipoDescuento(tipoDescuento),
         valor: parseFloat(valor),
         aplica_a: mapAplicaA(aplicaA),
-        id_referencia: aplicaA === 'Producto' ? idReferencia : null,
+        id_referencia: refId,
         compra_minima: compraMinima ? parseFloat(compraMinima) : null,
         cantidad_minima: cantidadMinima ? parseInt(cantidadMinima) : null,
         usos_maximos: usosMaximos ? parseInt(usosMaximos) : null,
@@ -204,23 +410,48 @@
       
       if (response.ok) {
         successMessage = 'Descuento actualizado exitosamente';
+        // Actualizar datos originales con los nuevos valores
+        datosOriginales = {
+          nombre,
+          descripcion,
+          tipoDescuento,
+          valor,
+          aplicaA,
+          idReferencia,
+          compraMinima,
+          cantidadMinima,
+          usosMaximos,
+          fechaInicio,
+          fechaFin,
+          activo
+        };
         setTimeout(() => {
           goto('/gestion-descuentos');
         }, 1500);
       } else {
         const errorText = await response.text();
-        errorMessage = `Error al crear descuento: ${errorText || response.statusText}`;
+        errorMessage = `Error al actualizar descuento: ${errorText || response.statusText}`;
       }
-    } catch (e) {
+    } catch (e: any) {
       errorMessage = `Error de conexión: ${e.message}`;
-      console.error('Error creating descuento:', e);
+      console.error('Error updating descuento:', e);
     } finally {
       loading = false;
     }
   }
   
-  $: showProductoSelect = aplicaA === 'Producto';
+  $: showReferenciaSelect = aplicaA === 'Producto' || aplicaA === 'Categoría' || aplicaA === 'Marca';
   $: valueIcon = tipoDescuento === 'Porcentaje' ? 'percent' : 'attach_money';
+  
+  // Obtener opciones de referencia según el tipo seleccionado
+  $: opcionesReferencia = (() => {
+    if (aplicaA === 'Producto') return productos.map(p => ({ id: p.id_producto_detalle, nombre: p.nombre }));
+    if (aplicaA === 'Categoría') return categorias.map(c => ({ id: c.id_categoria, nombre: c.nombre }));
+    if (aplicaA === 'Marca') return marcas.map(m => ({ id: m.id_marca, nombre: m.nombre }));
+    return [];
+  })();
+  
+  $: labelReferencia = aplicaA === 'Producto' ? 'Producto Específico' : aplicaA === 'Categoría' ? 'Categoría Específica' : 'Marca Específica';
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root bg-background-light dark:bg-background-dark font-display text-[#111418] dark:text-gray-200">
@@ -326,15 +557,15 @@
                   <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
               </label>
-              <!-- Producto Específico -->
-              {#if showProductoSelect}
+              <!-- Referencia Específica (Producto/Categoría/Marca) -->
+              {#if showReferenciaSelect}
                 <label class="flex flex-col min-w-40 flex-1 py-3">
-                  <p class="text-[#111418] dark:text-slate-200 text-base font-medium leading-normal pb-2">Producto Específico *</p>
+                  <p class="text-[#111418] dark:text-slate-200 text-base font-medium leading-normal pb-2">{labelReferencia} *</p>
                   <div class="relative">
                     <select bind:value={idReferencia} class="form-input appearance-none flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-white focus:outline-0 focus:ring-0 bg-background-light dark:bg-slate-800 border-gray-200 dark:border-slate-700 h-14 placeholder:text-[#617589] dark:placeholder:text-slate-500 p-[15px] text-base font-normal leading-normal pr-10">
-                      <option value={null}>Seleccionar producto...</option>
-                      {#each productos as producto}
-                        <option value={producto.id_producto_detalle}>{producto.nombre}</option>
+                      <option value={null}>Seleccionar {aplicaA.toLowerCase()}...</option>
+                      {#each opcionesReferencia as opcion (opcion.id)}
+                        <option value={opcion.id}>{opcion.nombre}</option>
                       {/each}
                     </select>
                     <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
@@ -391,11 +622,31 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex justify-end gap-4 p-4 mt-6 border-t border-gray-200 dark:border-slate-800">
-              <a href="/gestion-descuentos" class="flex items-center justify-center h-12 px-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-[#111418] dark:text-white text-base font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Cancelar</a>
-              <button on:click={handleSubmit} disabled={loading} class="flex items-center justify-center h-12 px-6 rounded-lg bg-primary text-white text-base font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? 'Actualizando...' : 'Actualizar Descuento'}
-              </button>
+            <div class="flex flex-wrap justify-between gap-4 p-4 mt-6 border-t border-gray-200 dark:border-slate-800">
+              <div class="flex items-center gap-2">
+                {#if hayCambios}
+                  <button 
+                    on:click={revertirCambios} 
+                    class="flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-base font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                  >
+                    <span class="material-symbols-outlined text-xl">undo</span>
+                    Revertir Cambios
+                  </button>
+                  <span class="text-sm text-amber-600 dark:text-amber-400">
+                    ({calcularCambios().length} cambio{calcularCambios().length !== 1 ? 's' : ''} pendiente{calcularCambios().length !== 1 ? 's' : ''})
+                  </span>
+                {/if}
+              </div>
+              <div class="flex gap-4">
+                <a href="/gestion-descuentos" class="flex items-center justify-center h-12 px-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-[#111418] dark:text-white text-base font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Cancelar</a>
+                <button 
+                  on:click={iniciarGuardado} 
+                  disabled={loading || !hayCambios} 
+                  class="flex items-center justify-center h-12 px-6 rounded-lg bg-primary text-white text-base font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Actualizando...' : 'Actualizar Descuento'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -404,3 +655,68 @@
     </main>
   </div>
 </div>
+
+<!-- Modal de Confirmación de Cambios -->
+{#if showConfirmModal}
+  <div class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" on:click={cerrarModal} on:keydown={(e) => e.key === 'Escape' && cerrarModal()} role="dialog" tabindex="-1">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden" on:click|stopPropagation role="document">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30">
+            <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">warning</span>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Confirmar Cambios</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Revisa los cambios antes de guardar</p>
+          </div>
+        </div>
+        <button on:click={cerrarModal} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-4 overflow-y-auto max-h-[50vh]">
+        <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          Se realizarán los siguientes cambios al descuento "<strong>{datosOriginales?.nombre}</strong>":
+        </p>
+        
+        <div class="space-y-3">
+          {#each cambiosPendientes as cambio (cambio.campo)}
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{cambio.campo}</p>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 line-through">
+                  {cambio.antes}
+                </span>
+                <span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+                <span class="px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                  {cambio.despues}
+                </span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div class="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <button 
+          on:click={cerrarModal}
+          class="flex items-center justify-center h-10 px-4 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button 
+          on:click={handleSubmit}
+          disabled={loading}
+          class="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          <span class="material-symbols-outlined text-lg">check</span>
+          {loading ? 'Guardando...' : 'Confirmar y Guardar'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

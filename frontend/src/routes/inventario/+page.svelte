@@ -595,7 +595,7 @@
   {#each inventarioItems as item}
   <tr class="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/60">
     <td class="p-4">
-      <img class="w-10 h-10 rounded-md object-cover" alt={item.nombre} src={item.imagen_principal || 'https://via.placeholder.com/40'}/>
+      <img class="w-10 h-10 rounded-md object-cover" alt={item.nombre} src={item.imagen_principal || '/placeholder-product.svg'}/>
     </td>
     <th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
       {item.nombre}<br/>
@@ -736,7 +736,7 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
     on:click={() => selectProduct(result)}
     class="w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 text-left border-b border-gray-200 dark:border-gray-700 last:border-b-0"
   >
-    <img src={result.imagen_principal || 'https://via.placeholder.com/40'} alt={result.nombre} class="w-10 h-10 rounded object-cover" />
+    <img src={result.imagen_principal || '/placeholder-product.svg'} alt={result.nombre} class="w-10 h-10 rounded object-cover" />
     <div class="flex-1">
       <p class="text-sm font-medium text-gray-900 dark:text-white">{result.nombre}</p>
       <p class="text-xs text-gray-500 dark:text-gray-400">SKU: {result.sku} | Stock: {result.stock_actual}</p>
@@ -752,7 +752,7 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
 <div class="p-4 border rounded-lg border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
 <div class="flex items-center justify-between gap-4">
 <div class="flex items-center gap-4 flex-[2_2_0px]">
-<div class="w-24 h-24 bg-center bg-no-repeat aspect-square bg-cover rounded-lg flex-shrink-0" style="background-image: url('{selectedProduct.imagen_principal || 'https://via.placeholder.com/96'}');"></div>
+<div class="w-24 h-24 bg-center bg-no-repeat aspect-square bg-cover rounded-lg flex-shrink-0" style="background-image: url('{selectedProduct.imagen_principal || '/placeholder-product.svg'}');"></div>
 <div class="flex flex-col gap-1">
 <p class="text-gray-900 dark:text-white text-lg font-bold leading-tight">{selectedProduct.nombre}</p>
 <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">SKU: {selectedProduct.sku}</p>
@@ -868,7 +868,7 @@ Cancelar
 {#if selectedProductAdjust}
 <div class="p-4 border rounded-lg border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
 <div class="flex items-center gap-4">
-<img src={selectedProductAdjust.imagen_principal || 'https://via.placeholder.com/64'} alt={selectedProductAdjust.nombre} class="w-16 h-16 rounded object-cover" />
+<img src={selectedProductAdjust.imagen_principal || '/placeholder-product.svg'} alt={selectedProductAdjust.nombre} class="w-16 h-16 rounded object-cover" />
 <div class="flex-1">
   <p class="text-gray-900 dark:text-white text-lg font-bold leading-tight">{selectedProductAdjust.nombre}</p>
   <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">SKU: {selectedProductAdjust.sku}</p>
@@ -930,7 +930,7 @@ Cancelar
 <aside class="fixed top-0 right-0 h-full w-full max-w-2xl bg-background-light dark:bg-background-dark z-50 flex flex-col shadow-2xl">
 <header class="flex items-start justify-between p-6 border-b border-gray-200 dark:border-gray-800">
 <div class="flex items-center gap-4">
-<img class="w-16 h-16 rounded-lg object-cover" alt={selectedProductHistory?.nombre || 'Producto'} src={selectedProductHistory?.imagen_principal || 'https://via.placeholder.com/64'}/>
+<img class="w-16 h-16 rounded-lg object-cover" alt={selectedProductHistory?.nombre || 'Producto'} src={selectedProductHistory?.imagen_principal || '/placeholder-product.svg'}/>
 <div class="flex flex-col gap-1">
 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Historial de Movimientos</h2>
 <p class="text-sm text-gray-700 dark:text-gray-300">{selectedProductHistory?.nombre || 'Producto'}</p>

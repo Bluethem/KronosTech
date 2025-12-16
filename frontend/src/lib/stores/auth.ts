@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { Usuario } from '$lib/services/auth';
 import { getCurrentUser, logout as logoutApi, isAuthenticated as checkAuth } from '$lib/services/auth';
@@ -55,7 +55,11 @@ export async function initAuth(): Promise<void> {
 export async function logout(): Promise<void> {
   setAuthLoading(true);
   try {
-    await logoutApi();
+    // Obtener email antes de cerrar sesión para el log
+    const currentUser = get(authUser);
+    const userEmail = currentUser?.email;
+    
+    await logoutApi(userEmail);
     setUser(null);
     // Limpiar carrito al cerrar sesión
     cartService.clearStore();

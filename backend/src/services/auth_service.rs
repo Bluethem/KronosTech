@@ -97,8 +97,11 @@ impl AuthService {
         // Actualizar última conexión
         let _ = AuthRepository::update_last_login(pool, usuario.id_usuario).await;
 
-        // Generar token JWT
-        let token = Self::generate_token(&usuario, request.remember_me.unwrap_or(false))?;
+        // Obtener session_timeout de la configuración del sistema
+        let session_timeout = Self::get_session_timeout(pool).await;
+
+        // Generar token JWT con el timeout configurado
+        let token = Self::generate_token(&usuario, request.remember_me.unwrap_or(false), session_timeout)?;
 
         Ok(LoginResponse {
             token,
@@ -106,12 +109,25 @@ impl AuthService {
         })
     }
 
+    // Obtener session_timeout desde la BD
+    async fn get_session_timeout(pool: &PgPool) -> i64 {
+        match sqlx::query_scalar::<_, String>(
+            "SELECT valor FROM configuracion_sistema WHERE clave = 'session_timeout'"
+        )
+        .fetch_optional(pool)
+        .await
+        {
+            Ok(Some(valor)) => valor.parse().unwrap_or(24),
+            _ => 24, // Default 24 horas
+        }
+    }
+
     // Generar token JWT
-    fn generate_token(usuario: &Usuario, remember_me: bool) -> Result<String, String> {
+    fn generate_token(usuario: &Usuario, remember_me: bool, session_timeout_hours: i64) -> Result<String, String> {
         let jwt_secret = env::var("JWT_SECRET")
             .unwrap_or_else(|_| "default_secret_change_in_production".to_string());
 
-        // Duración del token: 24 horas (o 30 días si remember_me)
+        // Duración del token: session_timeout horas (o 30 días si remember_me)
         let expiration = if remember_me {
             chrono::Utc::now()
                 .checked_add_signed(chrono::Duration::days(30))
@@ -119,7 +135,7 @@ impl AuthService {
                 .timestamp() as usize
         } else {
             chrono::Utc::now()
-                .checked_add_signed(chrono::Duration::hours(24))
+                .checked_add_signed(chrono::Duration::hours(session_timeout_hours))
                 .expect("valid timestamp")
                 .timestamp() as usize
         };
