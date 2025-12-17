@@ -91,3 +91,4 @@ impl From<LogAuditoria> for LogResponse {
     }
 }
 
+

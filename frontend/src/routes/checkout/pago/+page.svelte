@@ -264,16 +264,16 @@
 				<p class="text-slate-600 dark:text-slate-400">Cargando métodos de pago...</p>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 lg:grid-cols-[minmax(0,2.1fr),minmax(0,1fr)] gap-6 items-start">
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+				<!-- Columna izquierda: Métodos de pago -->
 				<section class="space-y-4">
-					<!-- Métodos de pago -->
 					<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800 p-5 space-y-3">
 						<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-2">
 							<CreditCard size={16} />
 							Selecciona un método de pago
 						</h2>
 
-						<div class="space-y-3">
+						<div class="space-y-2">
 							{#each metodosPago as method (method.id_metodo_pago)}
 								<button
 									type="button"
@@ -282,7 +282,7 @@
 										: 'border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-700'}"
 									on:click={() => (selectedPaymentId = method.id_metodo_pago)}
 								>
-									<div class="mt-1">
+									<div class="mt-0.5">
 										<div
 											class="w-4 h-4 rounded-full border flex items-center justify-center {selectedPaymentId === method.id_metodo_pago
 												? 'border-primary bg-primary'
@@ -294,27 +294,22 @@
 										</div>
 									</div>
 
-									<div class="flex-1 min-w-0 space-y-1">
+									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-2">
 											<svelte:component this={getPaymentIcon(method.tipo)} size={16} class="text-slate-500 dark:text-slate-400" />
 											<p class="text-sm font-semibold truncate text-text-light dark:text-text-dark">
 												{method.nombre}
 											</p>
+											{#if method.comision_porcentaje > 0 || method.comision_fija > 0}
+												<span class="text-[10px] text-amber-600 dark:text-amber-400 ml-auto">
+													{method.comision_porcentaje > 0 ? `${method.comision_porcentaje}%` : ''}
+													{method.comision_fija > 0 ? `+ S/${method.comision_fija}` : ''}
+												</span>
+											{/if}
 										</div>
 										{#if method.descripcion}
-											<p class="text-xs text-slate-600 dark:text-slate-400">
+											<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
 												{method.descripcion}
-											</p>
-										{/if}
-										{#if method.instrucciones}
-											<p class="text-[11px] text-slate-500 dark:text-slate-500">
-												{method.instrucciones}
-											</p>
-										{/if}
-										{#if method.comision_porcentaje > 0 || method.comision_fija > 0}
-											<p class="text-[11px] text-amber-600 dark:text-amber-400">
-												Comisión: {method.comision_porcentaje > 0 ? `${method.comision_porcentaje}%` : ''}
-												{method.comision_fija > 0 ? `+ S/. ${method.comision_fija}` : ''}
 											</p>
 										{/if}
 									</div>
@@ -322,120 +317,111 @@
 							{/each}
 						</div>
 					</div>
+				</section>
 
+				<!-- Columna derecha: Detalles + Términos + Resumen -->
+				<aside class="space-y-4 lg:sticky lg:top-24">
 					<!-- Información del método seleccionado -->
 					{#if selectedPayment}
-						<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800 p-5 space-y-4">
-							<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
-								Detalles de pago
-							</h2>
-
-							<div class="rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-border-light dark:border-border-dark px-4 py-3 space-y-2">
-								<p class="text-sm font-semibold text-text-light dark:text-text-dark">{selectedPayment.nombre}</p>
-								{#if selectedPayment.descripcion}
-									<p class="text-xs text-slate-600 dark:text-slate-400">{selectedPayment.descripcion}</p>
-								{/if}
-								{#if selectedPayment.instrucciones}
-									<p class="text-xs text-slate-500 dark:text-slate-500 pt-2 border-t border-border-light dark:border-border-dark">
-										{selectedPayment.instrucciones}
-									</p>
-								{/if}
-								{#if selectedPayment.tiempo_procesamiento}
-									<p class="text-xs text-primary">
-										Tiempo de procesamiento: {selectedPayment.tiempo_procesamiento}
-									</p>
-								{/if}
+						<div class="rounded-xl border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 space-y-3">
+							<div class="flex items-center gap-2">
+								<svelte:component this={getPaymentIcon(selectedPayment.tipo)} size={18} class="text-primary" />
+								<h3 class="text-sm font-semibold text-text-light dark:text-text-dark">
+									{selectedPayment.nombre}
+								</h3>
 							</div>
+							
+							{#if selectedPayment.instrucciones}
+								<p class="text-xs text-slate-600 dark:text-slate-400">
+									{selectedPayment.instrucciones}
+								</p>
+							{/if}
+							
+							{#if selectedPayment.tiempo_procesamiento}
+								<p class="text-xs text-primary font-medium">
+									⏱ Procesamiento: {selectedPayment.tiempo_procesamiento}
+								</p>
+							{/if}
 
-							<p class="text-[11px] text-slate-500 dark:text-slate-500 flex items-center gap-1">
-								<ShieldCheck size={14} />
-								No guardamos los datos de tu tarjeta. El procesamiento de pago es seguro y encriptado.
+							<p class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 pt-2 border-t border-primary/20">
+								<ShieldCheck size={12} />
+								Pago seguro y encriptado
 							</p>
 						</div>
 					{/if}
 
-					<!-- Aceptar términos -->
-					<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800 p-5">
-						<div class="flex items-start gap-3">
-							<input
-								id="terms"
-								type="checkbox"
-								class="mt-1 rounded border border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900 text-primary focus:ring-primary/50"
-								bind:checked={acceptTerms}
-							/>
-							<label for="terms" class="text-sm text-slate-600 dark:text-slate-400">
-								He leído y acepto los
-								<a href="/terminos" target="_blank" class="text-primary hover:underline">
-									Términos y Condiciones
-								</a>
-								y la
-								<a href="/privacidad" target="_blank" class="text-primary hover:underline">
-									Política de Privacidad
-								</a>
-								de KronosTech.
-							</label>
-						</div>
-					</div>
-				</section>
+					<!-- Resumen del pedido -->
+					<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800 p-5 space-y-4">
+						<h2 class="text-base font-semibold text-text-light dark:text-text-dark">Resumen del pedido</h2>
 
-				<!-- Resumen -->
-				<aside
-					aria-label="Resumen del pedido"
-					class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800 p-5 space-y-4 sticky top-24"
-				>
-					<h2 class="text-lg font-semibold text-text-light dark:text-text-dark">Resumen del pedido</h2>
-
-					<div class="space-y-2 text-sm">
-						<div class="flex justify-between">
-							<span class="text-slate-600 dark:text-slate-400">
-								Subtotal ({$cartItems.length} artículo{$cartItems.length === 1 ? '' : 's'})
-							</span>
-							<span class="font-medium text-text-light dark:text-text-dark">
-								S/. {subtotal.toFixed(2)}
-							</span>
-						</div>
-
-						{#if calculatedTotal?.cupon_aplicado}
-							<div class="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
-								<span class="text-xs flex items-center gap-1">
-									<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-									Cupón: {calculatedTotal.cupon_aplicado}
+						<div class="space-y-2 text-sm">
+							<div class="flex justify-between">
+								<span class="text-slate-600 dark:text-slate-400">
+									Subtotal ({$cartItems.length} artículo{$cartItems.length === 1 ? '' : 's'})
 								</span>
-								<span class="font-medium">
-									− S/. {calculatedTotal.descuento_cupon?.toFixed(2) || '0.00'}
+								<span class="font-medium text-text-light dark:text-text-dark">
+									S/. {subtotal.toFixed(2)}
 								</span>
 							</div>
-						{/if}
 
-						<div class="flex justify-between">
-							<span class="text-slate-600 dark:text-slate-400">Descuento total</span>
-							<span class="font-medium text-text-light dark:text-text-dark">
-								{#if descuento > 0}
-									− S/. {descuento.toFixed(2)}
-								{:else}
-									S/. 0.00
-								{/if}
-							</span>
-						</div>
+							{#if calculatedTotal?.cupon_aplicado}
+								<div class="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
+									<span class="text-xs flex items-center gap-1">
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+										Cupón: {calculatedTotal.cupon_aplicado}
+									</span>
+									<span class="font-medium">
+										− S/. {calculatedTotal.descuento_cupon?.toFixed(2) || '0.00'}
+									</span>
+								</div>
+							{/if}
 
-						<div class="flex justify-between items-center">
-							<span class="text-slate-600 dark:text-slate-400">Envío</span>
-							<span class="font-medium text-text-light dark:text-text-dark">
-								{costoEnvio === 0 ? 'Gratis' : `S/. ${costoEnvio.toFixed(2)}`}
-							</span>
-						</div>
+							{#if descuento > 0}
+								<div class="flex justify-between">
+									<span class="text-slate-600 dark:text-slate-400">Descuento</span>
+									<span class="font-medium text-emerald-600 dark:text-emerald-400">
+										− S/. {descuento.toFixed(2)}
+									</span>
+								</div>
+							{/if}
 
-						<div class="border-t border-border-light dark:border-border-dark pt-3 mt-2 flex justify-between items-center">
-							<span class="text-sm font-semibold text-text-light dark:text-text-dark">Total a pagar</span>
-							<span class="text-xl font-bold text-primary">
-								S/. {total.toFixed(2)}
-							</span>
+							<div class="flex justify-between items-center">
+								<span class="text-slate-600 dark:text-slate-400">Envío</span>
+								<span class="font-medium text-text-light dark:text-text-dark">
+									{costoEnvio === 0 ? 'Gratis' : `S/. ${costoEnvio.toFixed(2)}`}
+								</span>
+							</div>
+
+							<div class="border-t border-border-light dark:border-border-dark pt-3 mt-2 flex justify-between items-center">
+								<span class="text-sm font-semibold text-text-light dark:text-text-dark">Total a pagar</span>
+								<span class="text-xl font-bold text-primary">
+									S/. {total.toFixed(2)}
+								</span>
+							</div>
 						</div>
 					</div>
 
+					<!-- Aceptar términos -->
+					<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800 p-4">
+						<label class="flex items-start gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								class="mt-0.5 rounded border border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900 text-primary focus:ring-primary/50"
+								bind:checked={acceptTerms}
+							/>
+							<span class="text-xs text-slate-600 dark:text-slate-400">
+								He leído y acepto los
+								<a href="/terminos" target="_blank" class="text-primary hover:underline">Términos</a>
+								y la
+								<a href="/privacidad" target="_blank" class="text-primary hover:underline">Política de Privacidad</a>
+							</span>
+						</label>
+					</div>
+
+					<!-- Botón de pago -->
 					<button
 						type="button"
-						class="w-full mt-2 px-4 py-3 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+						class="w-full px-4 py-3.5 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
 						on:click={handlePay}
 						disabled={!$cartItems.length || processing || !acceptTerms}
 					>
@@ -443,12 +429,13 @@
 							<Loader2 size={16} class="animate-spin" />
 							Procesando pago...
 						{:else}
-							Pagar S/. {total.toFixed(2)}
+							<Check size={16} />
+							Confirmar y Pagar S/. {total.toFixed(2)}
 						{/if}
 					</button>
 
-					<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-						Al confirmar el pago crearemos tu pedido y recibirás un correo con el resumen de la compra.
+					<p class="text-[11px] text-slate-500 dark:text-slate-400 text-center">
+						Al confirmar crearemos tu pedido y recibirás un correo con el resumen.
 					</p>
 				</aside>
 			</div>

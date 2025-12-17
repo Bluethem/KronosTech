@@ -540,3 +540,94 @@ pub async fn update_venta_tracking(
         }
     }
 }
+
+// ==================== NOTAS INTERNAS DEL ADMIN ====================
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateNotasAdminRequest {
+    pub notas_admin: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NotasAdminResponse {
+    pub id_venta: i32,
+    pub notas_admin: Option<String>,
+    pub fecha_actualizacion: Option<String>,
+    pub success: bool,
+}
+
+/// Actualizar notas internas del administrador para una venta
+pub async fn update_notas_admin(
+    State(pool): State<PgPool>,
+    axum::extract::Path(id_venta): axum::extract::Path<i32>,
+    Json(payload): Json<UpdateNotasAdminRequest>,
+) -> Result<Json<NotasAdminResponse>, StatusCode> {
+    // Primero actualizamos
+    let update_result = sqlx::query!(
+        r#"
+        UPDATE venta 
+        SET notas_admin = $1,
+            fecha_actualizacion = CURRENT_TIMESTAMP
+        WHERE id_venta = $2
+        "#,
+        payload.notas_admin,
+        id_venta
+    )
+    .execute(&pool)
+    .await;
+
+    match update_result {
+        Ok(result) => {
+            if result.rows_affected() == 0 {
+                return Err(StatusCode::NOT_FOUND);
+            }
+            
+            // Devolvemos la respuesta
+            Ok(Json(NotasAdminResponse {
+                id_venta,
+                notas_admin: Some(payload.notas_admin),
+                fecha_actualizacion: Some(chrono::Utc::now().to_rfc3339()),
+                success: true,
+            }))
+        }
+        Err(e) => {
+            eprintln!("Error updating notas_admin: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+/// Obtener notas internas de una venta
+pub async fn get_notas_admin(
+    State(pool): State<PgPool>,
+    axum::extract::Path(id_venta): axum::extract::Path<i32>,
+) -> Result<Json<NotasAdminResponse>, StatusCode> {
+    let result = sqlx::query!(
+        r#"
+        SELECT id_venta, notas_admin, fecha_actualizacion
+        FROM venta 
+        WHERE id_venta = $1
+        "#,
+        id_venta
+    )
+    .fetch_optional(&pool)
+    .await;
+
+    match result {
+        Ok(Some(row)) => {
+            Ok(Json(NotasAdminResponse {
+                id_venta: row.id_venta,
+                notas_admin: row.notas_admin,
+                fecha_actualizacion: row.fecha_actualizacion.map(|f| f.to_string()),
+                success: true,
+            }))
+        }
+        Ok(None) => {
+            Err(StatusCode::NOT_FOUND)
+        }
+        Err(e) => {
+            eprintln!("Error getting notas_admin: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}

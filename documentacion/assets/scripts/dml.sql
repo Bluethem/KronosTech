@@ -186,18 +186,28 @@ INSERT INTO carrito_detalle (id_carrito, id_producto_detalle, cantidad, precio_u
 -- 11. VENTAS DE EJEMPLO
 -- ============================================================================
 
+-- Ventas con fechas dinámicas (recientes) para que aparezcan en reportes
 INSERT INTO venta (numero_pedido, id_usuario, subtotal, descuento_total, costo_envio, total, estado, estado_pago, direccion_envio, ciudad, departamento, telefono_contacto, metodo_envio, fecha_pedido, fecha_pago, fecha_confirmacion) VALUES
-('PED-20241110-00000001', 3, 2599.00, 0.00, 25.00, 2624.00, 'entregado', 'completado', 'Av. Javier Prado Este 4567', 'Lima', 'Lima', '987654324', 'Envío Express', '2024-11-10 10:30:00', '2024-11-10 10:35:00', '2024-11-10 10:40:00'),
-('PED-20241112-00000002', 4, 3848.00, 192.40, 25.00, 3680.60, 'procesando', 'completado', 'Calle Los Olivos 234', 'San Isidro', 'Lima', '987654325', 'Envío Estándar', '2024-11-12 15:20:00', '2024-11-12 15:25:00', '2024-11-12 15:30:00'),
-('PED-20241114-00000003', 5, 1499.00, 0.00, 25.00, 1524.00, 'pendiente', 'pendiente', 'Av. Benavides 1890', 'Miraflores', 'Lima', '987654326', 'Envío Express', '2024-11-14 09:15:00', NULL, NULL);
+('PED-20241110-00000001', 3, 2599.00, 0.00, 25.00, 2624.00, 'entregado', 'completado', 'Av. Javier Prado Este 4567', 'Lima', 'Lima', '987654324', 'Envío Express', CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days' + INTERVAL '5 minutes', CURRENT_TIMESTAMP - INTERVAL '15 days' + INTERVAL '10 minutes'),
+('PED-20241112-00000002', 4, 3848.00, 192.40, 25.00, 3680.60, 'procesando', 'completado', 'Calle Los Olivos 234', 'San Isidro', 'Lima', '987654325', 'Envío Estándar', CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '10 days' + INTERVAL '5 minutes', CURRENT_TIMESTAMP - INTERVAL '10 days' + INTERVAL '10 minutes'),
+('PED-20241114-00000003', 5, 1499.00, 0.00, 25.00, 1524.00, 'pendiente', 'pendiente', 'Av. Benavides 1890', 'Miraflores', 'Lima', '987654326', 'Envío Express', CURRENT_TIMESTAMP - INTERVAL '5 days', NULL, NULL),
+('PED-20241215-00000004', 3, 1799.00, 0.00, 25.00, 1824.00, 'confirmado', 'completado', 'Av. Javier Prado Este 4567', 'Lima', 'Lima', '987654324', 'Envío Express', CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '5 minutes', CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '10 minutes'),
+('PED-20241216-00000005', 4, 649.00, 0.00, 15.00, 664.00, 'enviado', 'completado', 'Calle Los Olivos 234', 'San Isidro', 'Lima', '987654325', 'Envío Estándar', CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day' + INTERVAL '5 minutes', CURRENT_TIMESTAMP - INTERVAL '1 day' + INTERVAL '10 minutes');
 
 INSERT INTO detalle_venta (id_venta, id_producto_detalle, id_producto, cantidad, precio_unitario, descuento_unitario, precio_final, subtotal) VALUES
+-- Venta 1: Procesador + RAM + SSD
 (1, 3, 3, 1, 1299.00, 0.00, 1299.00, 1299.00),
 (1, 10, 7, 2, 349.00, 0.00, 349.00, 698.00),
 (1, 14, 10, 1, 599.00, 0.00, 599.00, 599.00),
+-- Venta 2: GPU + RAM
 (2, 7, 6, 1, 3199.00, 159.95, 3039.05, 3039.05),
 (2, 11, 8, 1, 649.00, 32.45, 616.55, 616.55),
-(3, 1, 1, 1, 1499.00, 0.00, 1499.00, 1499.00);
+-- Venta 3: Procesador
+(3, 1, 1, 1, 1499.00, 0.00, 1499.00, 1499.00),
+-- Venta 4: Placa madre
+(4, 5, 4, 1, 1799.00, 0.00, 1799.00, 1799.00),
+-- Venta 5: RAM
+(5, 11, 8, 1, 649.00, 0.00, 649.00, 649.00);
 
 -- ============================================================================
 -- 12. VALORACIONES
@@ -302,6 +312,29 @@ INSERT INTO log_auditoria (nivel, accion, detalles, modulo, id_usuario, email_us
 -- Logs de seguridad
 ('security', 'Múltiples intentos fallidos', 'Se detectaron 5 intentos fallidos de login desde IP 45.67.89.10', 'Seguridad', NULL, 'Sistema', '45.67.89.10', CURRENT_TIMESTAMP - INTERVAL '3 minutes'),
 ('error', 'Error de conexión', 'Error temporal de conexión con pasarela de pago. Reintentos: 3', 'Sistema', NULL, 'Sistema', NULL, CURRENT_TIMESTAMP - INTERVAL '1 minute');
+
+-- ============================================================================
+-- 16. PAGOS DE EJEMPLO
+-- ============================================================================
+
+INSERT INTO pago (id_venta, id_metodo_pago, numero_transaccion, estado, monto, moneda, comision, monto_neto, proveedor_pago, id_transaccion_proveedor, fecha_pago) VALUES
+(1, 4, 'TXN-YAPE-20241110-001', 'completado', 2624.00, 'PEN', 0.00, 2624.00, 'Yape', 'YAPE_TXN_001', CURRENT_TIMESTAMP - INTERVAL '15 days'),
+(2, 1, 'TXN-VISA-20241112-001', 'completado', 3680.60, 'PEN', 106.74, 3573.86, 'Culqi', 'CULQI_TXN_001', CURRENT_TIMESTAMP - INTERVAL '10 days'),
+(3, 5, 'TXN-PLIN-20241114-001', 'pendiente', 1524.00, 'PEN', 0.00, 1524.00, 'Plin', NULL, NULL),
+(4, 4, 'TXN-YAPE-20241215-001', 'completado', 1824.00, 'PEN', 0.00, 1824.00, 'Yape', 'YAPE_TXN_002', CURRENT_TIMESTAMP - INTERVAL '2 days'),
+(5, 2, 'TXN-MC-20241216-001', 'completado', 664.00, 'PEN', 19.26, 644.74, 'Culqi', 'CULQI_TXN_002', CURRENT_TIMESTAMP - INTERVAL '1 day');
+
+-- ============================================================================
+-- 17. REEMBOLSOS DE EJEMPLO
+-- ============================================================================
+
+INSERT INTO reembolso (id_pago, id_venta, tipo_reembolso, monto_reembolsado, motivo, estado, id_usuario_solicitante, fecha_solicitado, fecha_aprobado, fecha_completado, notas_admin) VALUES
+-- Reembolso completado
+(1, 1, 'parcial', 599.00, 'El producto SSD Kingston llegó defectuoso, no enciende.', 'completado', 3, CURRENT_TIMESTAMP - INTERVAL '12 days', CURRENT_TIMESTAMP - INTERVAL '11 days', CURRENT_TIMESTAMP - INTERVAL '11 days' + INTERVAL '2 hours', 'Reembolso aprobado. Se verificó defecto con soporte técnico.'),
+-- Reembolso solicitado (pendiente)
+(2, 2, 'total', 3680.60, 'El pedido llegó incompleto, falta la memoria RAM.', 'solicitado', 4, CURRENT_TIMESTAMP - INTERVAL '2 days', NULL, NULL, NULL),
+-- Otro reembolso solicitado
+(2, 2, 'parcial', 616.55, 'La RAM llegó con un módulo dañado.', 'solicitado', 4, CURRENT_TIMESTAMP - INTERVAL '1 day', NULL, NULL, NULL);
 
 -- ============================================================================
 -- FIN DEL SCRIPT DML

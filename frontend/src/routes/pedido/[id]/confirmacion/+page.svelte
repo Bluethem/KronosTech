@@ -32,6 +32,7 @@
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
 		return date.toLocaleDateString('es-PE', {
+			timeZone: 'America/Lima',
 			day: '2-digit',
 			month: 'long',
 			year: 'numeric'

@@ -218,21 +218,34 @@ impl CheckoutRepository {
 
     /// Generar número de pedido único
     pub async fn generar_numero_pedido(pool: &PgPool) -> Result<String, sqlx::Error> {
-        let fecha = Utc::now();
-        let fecha_str = fecha.format("%Y%m%d").to_string();
-
-        // Obtener contador del día
-        let contador = sqlx::query_scalar!(
+        use chrono::FixedOffset;
+        // Usar zona horaria de Perú (UTC-5)
+        let peru_offset = FixedOffset::west_opt(5 * 3600).unwrap();
+        let fecha_peru = Utc::now().with_timezone(&peru_offset);
+        let fecha_str = fecha_peru.format("%Y%m%d").to_string();
+        
+        // Buscar el máximo número secuencial que coincida con el patrón PED-YYYYMMDD-XXXX
+        // Buscamos en TODOS los pedidos para evitar colisiones con pedidos de UTC vs Perú
+        let max_seq = sqlx::query_scalar!(
             r#"
-            SELECT COUNT(*) as "count!"
+            SELECT COALESCE(
+                MAX(
+                    CAST(
+                        SUBSTRING(numero_pedido FROM 'PED-' || $1 || '-(\d+)$') 
+                        AS INTEGER
+                    )
+                ),
+                0
+            ) as "max_seq!"
             FROM venta
-            WHERE DATE(fecha_pedido) = CURRENT_DATE
-            "#
+            WHERE numero_pedido LIKE 'PED-' || $1 || '-%'
+            "#,
+            fecha_str
         )
         .fetch_one(pool)
         .await?;
 
-        let numero_pedido = format!("PED-{}-{:04}", fecha_str, contador + 1);
+        let numero_pedido = format!("PED-{}-{:04}", fecha_str, max_seq + 1);
         Ok(numero_pedido)
     }
 
