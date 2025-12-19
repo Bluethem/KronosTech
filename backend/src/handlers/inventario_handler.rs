@@ -76,6 +76,7 @@ pub struct AjusteInventarioRequest {
     pub cantidad_maxima: Option<i32>,
     pub ubicacion_fisica: Option<String>,
     pub motivo: String,
+    pub imagen_principal: Option<String>, // Base64 image string
 }
 
 pub async fn get_inventario(
@@ -499,36 +500,54 @@ pub async fn update_inventario(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    // Create movement record for the adjustment
-    let insert_movement = r#"
-        INSERT INTO movimiento_inventario (
-            id_inventario,
-            id_producto_detalle,
-            tipo_movimiento,
-            cantidad,
-            cantidad_anterior,
-            cantidad_nueva,
-            motivo,
-            id_usuario,
-            fecha_movimiento
-        ) VALUES ($1, $2, $3::tipo_movimiento_inventario, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-    "#;
+    // Create movement record for the adjustment only if quantity changed
+    if diferencia != 0 {
+        let insert_movement = r#"
+            INSERT INTO movimiento_inventario (
+                id_inventario,
+                id_producto_detalle,
+                tipo_movimiento,
+                cantidad,
+                cantidad_anterior,
+                cantidad_nueva,
+                motivo,
+                id_usuario,
+                fecha_movimiento
+            ) VALUES ($1, $2, $3::tipo_movimiento_inventario, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+        "#;
 
-    if let Err(e) = sqlx::query(insert_movement)
-        .bind(id_inventario)
-        .bind(id_producto_detalle)
-        .bind("ajuste")
-        .bind(diferencia)
-        .bind(cantidad_anterior)
-        .bind(cantidad_nueva)
-        .bind(&payload.motivo)
-        .bind(1) // TODO: Get actual user ID from session
-        .execute(&mut *tx)
-        .await
-    {
-        eprintln!("Error creating movement record: {:?}", e);
-        let _ = tx.rollback().await;
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        if let Err(e) = sqlx::query(insert_movement)
+            .bind(id_inventario)
+            .bind(id_producto_detalle)
+            .bind("ajuste")
+            .bind(diferencia)
+            .bind(cantidad_anterior)
+            .bind(cantidad_nueva)
+            .bind(&payload.motivo)
+            .bind(1) // TODO: Get actual user ID from session
+            .execute(&mut *tx)
+            .await
+        {
+            eprintln!("Error creating movement record: {:?}", e);
+            let _ = tx.rollback().await;
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Update product image if provided
+    if let Some(imagen) = &payload.imagen_principal {
+        let update_image_query = "UPDATE producto_detalle SET imagen_principal = $1 WHERE id_producto_detalle = $2";
+        
+        if let Err(e) = sqlx::query(update_image_query)
+            .bind(imagen)
+            .bind(id_producto_detalle)
+            .execute(&mut *tx)
+            .await
+        {
+            eprintln!("Error updating product image: {:?}", e);
+            let _ = tx.rollback().await;
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     }
 
     // Commit transaction
