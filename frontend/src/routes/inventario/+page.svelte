@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   
   let showStockModal = $state(false);
@@ -56,6 +56,9 @@
   });
   let adjustSubmitting = $state(false);
   let adjustSuccessMessage = $state('');
+  
+  // Image URL for adjustment modal
+  let imageUrlAdjust = $state('');
   
   // PDF Generation
   let jsPDF: any;
@@ -291,8 +294,12 @@
       ubicacion_fisica: product.ubicacion_fisica || '',
       motivo: ''
     };
+    // Reset image URL
+    imageUrlAdjust = product.imagen_principal || '';
     showAdjustModal = true;
   }
+  
+
   
   async function submitAdjustment() {
     if (!selectedProductAdjust || !adjustFormData.cantidad_disponible || !adjustFormData.motivo) {
@@ -304,16 +311,24 @@
     adjustSuccessMessage = '';
     
     try {
+      // Prepare payload
+      const payload = {
+        cantidad_disponible: parseInt(adjustFormData.cantidad_disponible),
+        cantidad_minima: parseInt(adjustFormData.cantidad_minima),
+        cantidad_maxima: adjustFormData.cantidad_maxima ? parseInt(adjustFormData.cantidad_maxima) : null,
+        ubicacion_fisica: adjustFormData.ubicacion_fisica || null,
+        motivo: adjustFormData.motivo
+      };
+      
+      // Add image URL if provided and different from current
+      if (imageUrlAdjust && imageUrlAdjust !== selectedProductAdjust.imagen_principal) {
+        payload.imagen_principal = imageUrlAdjust;
+      }
+      
       const response = await fetch(`http://localhost:3000/api/inventario/${selectedProductAdjust.id_producto_detalle}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cantidad_disponible: parseInt(adjustFormData.cantidad_disponible),
-          cantidad_minima: parseInt(adjustFormData.cantidad_minima),
-          cantidad_maxima: adjustFormData.cantidad_maxima ? parseInt(adjustFormData.cantidad_maxima) : null,
-          ubicacion_fisica: adjustFormData.ubicacion_fisica || null,
-          motivo: adjustFormData.motivo
-        })
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) throw new Error('Error al actualizar inventario');
@@ -342,6 +357,7 @@
       motivo: ''
     };
     adjustSuccessMessage = '';
+    imageUrlAdjust = '';
   }
   
   async function deleteProduct(product) {
@@ -899,6 +915,12 @@ Cancelar
 <div class="flex flex-col md:col-span-1">
 <label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-location">Ubicación Física</label>
 <input bind:value={adjustFormData.ubicacion_fisica} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="adjust-location" placeholder="Estantería A-3" type="text"/>
+</div>
+<!-- URL de Imagen -->
+<div class="flex flex-col md:col-span-2">
+<label class="text-gray-800 dark:text-gray-200 text-base font-medium leading-normal pb-2" for="adjust-image-url">URL de Imagen del Producto</label>
+<input bind:value={imageUrlAdjust} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-14 placeholder:text-gray-500 dark:placeholder:text-gray-400 p-[15px] text-base font-normal leading-normal" id="adjust-image-url" placeholder="https://ejemplo.com/imagen.jpg" type="url"/>
+<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Ingresa la URL de la imagen del producto (ej: desde Unsplash, Imgur, etc.)</p>
 </div>
 <!-- Motivo -->
 <div class="flex flex-col md:col-span-2">
