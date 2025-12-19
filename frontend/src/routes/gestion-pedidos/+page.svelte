@@ -5,6 +5,7 @@
 	
 	export let data: PageData;
 	
+	let orders: any[] = [];
 	$: orders = data.orders || [];
 	
 	// Variables para los filtros
@@ -232,7 +233,7 @@
 				5: { cellWidth: 25, halign: 'right' }
 			},
 			margin: { left: 15, right: 15 },
-			didDrawPage: function(data) {
+			didDrawPage: function(data: any) {
 				// Footer
 				const footerY = pageHeight - 15;
 				doc.setFontSize(8);
@@ -284,7 +285,7 @@
 			if (response.ok) {
 				// Update local data
 				selectedOrder.estado = newStatus;
-				orders = orders; // Trigger reactivity
+				orders = [...orders]; // Trigger reactivity
 				alert('Estado actualizado exitosamente');
 				closeEditModal();
 			} else {
@@ -326,7 +327,7 @@
 				// Update local data
 				selectedOrder.numero_tracking = trackingNumber;
 				selectedOrder.estado = 'enviado'; // Update status to enviado
-				orders = orders; // Trigger reactivity
+				orders = [...orders]; // Trigger reactivity
 				alert('Información de envío actualizada exitosamente. Estado cambiado a Enviado.');
 				closeShippingModal();
 			} else {
@@ -336,60 +337,9 @@
 			alert('Error de conexión');
 		}
 	}
-	
-	// Filters
-	let searchQuery = '';
-	let filterStatus = 'Todos';
-	let filterPaymentStatus = 'Todos';
-	let filterDateFrom = '';
-	let filterDateTo = '';
-	
-	// Filtered orders
-	$: filteredOrders = orders.filter(order => {
-		// Search filter
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			const matchesSearch = 
-				order.numero_pedido?.toLowerCase().includes(query) ||
-				order.nombre_usuario?.toLowerCase().includes(query) ||
-				order.email_usuario?.toLowerCase().includes(query);
-			if (!matchesSearch) return false;
-		}
-		
-		// Status filter
-		if (filterStatus !== 'Todos' && order.estado?.toLowerCase() !== filterStatus.toLowerCase()) {
-			return false;
-		}
-		
-		// Payment status filter
-		if (filterPaymentStatus !== 'Todos' && order.estado_pago?.toLowerCase() !== filterPaymentStatus.toLowerCase()) {
-			return false;
-		}
-		
-		// Date filters (simplified - you can enhance this)
-		if (filterDateFrom && order.fecha_pedido) {
-			const orderDate = new Date(order.fecha_pedido);
-			const fromDate = new Date(filterDateFrom);
-			if (orderDate < fromDate) return false;
-		}
-		
-		if (filterDateTo && order.fecha_pedido) {
-			const orderDate = new Date(order.fecha_pedido);
-			const toDate = new Date(filterDateTo);
-			if (orderDate > toDate) return false;
-		}
-		
-		return true;
-	});
-	
-	function clearFilters() {
-		searchQuery = '';
-		filterStatus = 'Todos';
-		filterPaymentStatus = 'Todos';
-		filterDateFrom = '';
-		filterDateTo = '';
-		currentPage = 1;
-	}
+
+	// Orders (ya filtrados por query params via +page.ts)
+	$: filteredOrders = orders;
 	
 	// Pagination
 	let currentPage = 1;
@@ -630,7 +580,7 @@ No se encontraron pedidos
 
 <!-- Edit Status Modal -->
 {#if isEditModalOpen}
-<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeEditModal} on:keydown={(e) => e.key === 'Escape' && closeEditModal()} role="button" tabindex="0">
+<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeEditModal} on:keydown={(e) => (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') && closeEditModal()} role="button" tabindex="0">
 	<div class="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6" on:click|stopPropagation>
 		<div class="flex justify-between items-center mb-4">
 			<h3 class="text-xl font-bold text-gray-900 dark:text-white">Editar Estado del Pedido</h3>
@@ -644,8 +594,8 @@ No se encontraron pedidos
 			<p class="text-sm text-gray-600 dark:text-gray-400">Cliente: <span class="font-semibold text-gray-900 dark:text-white">{selectedOrder.nombre_usuario}</span></p>
 		</div>
 		<div class="mb-6">
-			<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nuevo Estado</label>
-			<select bind:value={newStatus} class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50">
+			<label for="new-status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nuevo Estado</label>
+			<select id="new-status" bind:value={newStatus} class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50">
 				<option value="Pendiente">Pendiente</option>
 				<option value="Confirmado">Confirmado</option>
 				<option value="Procesando">Procesando</option>
@@ -667,7 +617,7 @@ No se encontraron pedidos
 
 <!-- Shipping Info Modal -->
 {#if isShippingModalOpen}
-<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeShippingModal} on:keydown={(e) => e.key === 'Escape' && closeShippingModal()} role="button" tabindex="0">
+<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" on:click={closeShippingModal} on:keydown={(e) => (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') && closeShippingModal()} role="button" tabindex="0">
 	<div class="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6" on:click|stopPropagation>
 		<div class="flex justify-between items-center mb-4">
 			<h3 class="text-xl font-bold text-gray-900 dark:text-white">Actualizar Información de Envío</h3>
@@ -682,8 +632,8 @@ No se encontraron pedidos
 		</div>
 		<div class="space-y-4 mb-6">
 			<div>
-				<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Empresa de Envío</label>
-				<select bind:value={shippingCompany} class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50">
+				<label for="shipping-company" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Empresa de Envío</label>
+				<select id="shipping-company" bind:value={shippingCompany} class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50">
 					<option value="">Seleccionar empresa...</option>
 					<option value="Correos">Correos</option>
 					<option value="SEUR">SEUR</option>
@@ -693,8 +643,8 @@ No se encontraron pedidos
 				</select>
 			</div>
 			<div>
-				<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de Tracking</label>
-				<input bind:value={trackingNumber} type="text" placeholder="Ej: TRK123456789" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50" />
+				<label for="tracking-number" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número de Tracking</label>
+				<input id="tracking-number" bind:value={trackingNumber} type="text" placeholder="Ej: TRK123456789" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50" />
 			</div>
 		</div>
 		{/if}

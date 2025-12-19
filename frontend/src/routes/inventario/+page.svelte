@@ -274,15 +274,41 @@
     }
   }
   
-  function getMovementColor(tipoMovimiento: string) {
-    switch(tipoMovimiento.toLowerCase()) {
-      case 'entrada': return 'green';
+  function getMovementClasses(tipoMovimiento: string) {
+    switch (tipoMovimiento.toLowerCase()) {
+      case 'entrada':
+        return {
+          icon: 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400',
+          badge: 'bg-green-100 text-green-800 dark:bg-green-900/80 dark:text-green-300'
+        };
       case 'salida':
-      case 'venta': return 'red';
-      case 'ajuste': return 'blue';
-      case 'devolucion': return 'yellow';
-      default: return 'gray';
+      case 'venta':
+        return {
+          icon: 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400',
+          badge: 'bg-red-100 text-red-800 dark:bg-red-900/80 dark:text-red-300'
+        };
+      case 'ajuste':
+        return {
+          icon: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400',
+          badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/80 dark:text-blue-300'
+        };
+      case 'devolucion':
+        return {
+          icon: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300',
+          badge: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/80 dark:text-yellow-300'
+        };
+      default:
+        return {
+          icon: 'bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400',
+          badge: 'bg-gray-100 text-gray-800 dark:bg-gray-900/80 dark:text-gray-300'
+        };
     }
+  }
+
+  function getQuantityTextClass(isPositive: boolean) {
+    return isPositive
+      ? 'text-green-600 dark:text-green-400'
+      : 'text-red-600 dark:text-red-400';
   }
   
   function openAdjustModal(product) {
@@ -708,7 +734,7 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
 {#if showStockModal}
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8" style="background-color: rgba(0, 0, 0, 0.5);">
 <!-- Modal Container -->
-<div class="w-full max-w-4xl rounded-xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col">
+<div class="w-full max-w-4xl max-h-[90vh] rounded-xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col">
 <!-- Modal Header -->
 <div class="p-6 border-b border-gray-200 dark:border-gray-700">
 <div class="flex flex-wrap justify-between items-center gap-3">
@@ -719,7 +745,7 @@ Mostrando <span class="font-semibold text-gray-900 dark:text-white">{((currentPa
 </div>
 </div>
 <!-- Modal Body -->
-<div class="p-6 space-y-6">
+<div class="min-h-0 flex-1 overflow-y-auto p-6 space-y-6">
 <!-- Success Message -->
 {#if successMessage}
 <div class="p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
@@ -861,7 +887,7 @@ Cancelar
 {#if showAdjustModal}
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8" style="background-color: rgba(0, 0, 0, 0.5);">
 <!-- Modal Container -->
-<div class="w-full max-w-3xl rounded-xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col">
+<div class="w-full max-w-3xl max-h-[90vh] rounded-xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col">
 <!-- Modal Header -->
 <div class="p-6 border-b border-gray-200 dark:border-gray-700">
 <div class="flex flex-wrap justify-between items-center gap-3">
@@ -872,7 +898,7 @@ Cancelar
 </div>
 </div>
 <!-- Modal Body -->
-<div class="p-6 space-y-6">
+<div class="min-h-0 flex-1 overflow-y-auto p-6 space-y-6">
 <!-- Success Message -->
 {#if adjustSuccessMessage}
 <div class="p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
@@ -1007,21 +1033,21 @@ Cancelar
 {:else}
   <ul class="space-y-4">
   {#each historyMovements as movement}
-    {@const color = getMovementColor(movement.tipo_movimiento)}
     {@const icon = getMovementIcon(movement.tipo_movimiento)}
+    {@const movementClasses = getMovementClasses(movement.tipo_movimiento)}
     {@const tipoLower = movement.tipo_movimiento.toLowerCase()}
     {@const isPositive = tipoLower === 'entrada' || tipoLower === 'devolucion'}
     {@const displayCantidad = (tipoLower === 'salida' || tipoLower === 'venta') && movement.cantidad > 0 ? -movement.cantidad : movement.cantidad}
     <li class="flex items-start gap-4">
       <div class="flex flex-col items-center">
-        <span class="flex items-center justify-center size-8 rounded-full bg-{color}-100 dark:bg-{color}-900/50 text-{color}-600 dark:text-{color}-400">
+        <span class={`flex items-center justify-center size-8 rounded-full ${movementClasses.icon}`}>
           <span class="material-symbols-outlined text-lg">{icon}</span>
         </span>
       </div>
       <div class="flex-1">
         <div class="flex justify-between items-center">
           <p class="text-sm font-medium text-gray-800 dark:text-gray-200">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-{color}-100 text-{color}-800 dark:bg-{color}-900/80 dark:text-{color}-300">
+            <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${movementClasses.badge}`}>
               {movement.tipo_movimiento}
             </span>
           </p>
@@ -1029,7 +1055,7 @@ Cancelar
         </div>
         <div class="mt-1 flex justify-between items-center">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            Cantidad: <span class="font-semibold text-{isPositive ? 'green' : 'red'}-600 dark:text-{isPositive ? 'green' : 'red'}-400">{isPositive ? '+' : ''}{displayCantidad}</span>
+            Cantidad: <span class={`font-semibold ${getQuantityTextClass(isPositive)}`}>{isPositive ? '+' : ''}{displayCantidad}</span>
           </p>
           <p class="text-sm text-gray-500 dark:text-gray-400">
             {movement.cantidad_anterior} <span class="material-symbols-outlined text-sm align-middle">arrow_right_alt</span> {movement.cantidad_nueva}
