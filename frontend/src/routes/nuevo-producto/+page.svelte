@@ -39,6 +39,9 @@
   // Calculated margin
   let margin = $state(0);
   
+  // Image URL
+  let imagenUrl = $state('');
+  
   onMount(async () => {
     await fetchCatalogData();
   });
@@ -132,7 +135,8 @@
         activo: formData.activo,
         es_destacado: formData.es_destacado,
         es_nuevo: formData.es_nuevo,
-        es_oferta: formData.es_oferta
+        es_oferta: formData.es_oferta,
+        imagen_principal: imagenUrl || null
       };
       
       const response = await fetch('http://localhost:3000/api/productos', {
@@ -245,6 +249,12 @@
   {/if}
 </select>
 </label>
+<!-- URL de Imagen -->
+<label class="flex flex-col md:col-span-2">
+<p class="text-sm font-medium leading-normal pb-2">URL de Imagen del Producto</p>
+<input bind:value={imagenUrl} class="form-input w-full rounded-lg text-[#111418] dark:text-white dark:bg-gray-700 border-[#DEE2E6] dark:border-gray-600 h-12 p-3 text-base" placeholder="https://images.unsplash.com/photo-example?w=400" type="url"/>
+<p class="text-xs text-[#6C757D] mt-1">Ingresa la URL de la imagen del producto (ej: desde Unsplash, Imgur, etc.)</p>
+</label>
 </div>
 </div>
 <!-- Precios -->
@@ -314,28 +324,40 @@
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-[#DEE2E6] dark:border-gray-700">
 <h2 class="text-[#111418] dark:text-white text-xl font-bold p-5 border-b border-[#DEE2E6] dark:border-gray-700">Imágenes del Producto</h2>
 <div class="p-5 flex flex-col gap-4">
-<div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-primary dark:hover:border-primary transition">
-<span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-500 mx-auto">upload_file</span>
-<p class="mt-2 text-sm text-[#6C757D] dark:text-gray-400">Arrastra imágenes o haz clic para seleccionar</p>
-<button class="mt-4 bg-primary/10 text-primary font-semibold py-2 px-4 rounded-lg text-sm">Seleccionar Imágenes</button>
-<p class="text-xs text-[#6C757D] dark:text-gray-500 mt-2">Soporta: JPG, PNG, WEBP. Máx 5MB c/u</p>
-</div>
-<div class="grid grid-cols-3 gap-3">
-<div class="relative group">
-<img class="w-full h-24 object-cover rounded-lg" alt="Laptop plateada sobre una mesa de madera" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzZeRtL0pG5gucImZHcQoVsQQNPOqZ0MunmIbCyJR98KZbQ2JajaaKZZLDgP-ViE2NwovWM11_2K5j9Tboui_iE0jFsJUUvnQpLU8vh52jD6iXboUMYlYtUErq8aZRQXc9i93ZsWfsKoCun0wENz0TwiHOuWFJ-gd1aCTAnVaxsk_SjF7hmhUXNAwGcgSmccrkLkmRU0lCA-K72T5u7zbPDZ_sYREl8HnA49XHg9ALeUkVKdwVJKOVLjIuytdaS_fMBvmsfs3CVS8"/>
-<div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-<button class="text-white"><span class="material-symbols-outlined text-xl">delete</span></button>
-</div>
-<input checked="" class="absolute top-2 left-2" name="main-image" type="radio"/>
-</div>
-<div class="relative group">
-<img class="w-full h-24 object-cover rounded-lg" alt="Vista frontal de una laptop con pantalla iluminada" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRzji9NGBkMCbFEaMA4q8Q8cPCTvJtBaNINohx4E5uVkBYYptMTvktLvL--Ki8qgYqjUCWWk77EayCLR-UqYZi18x6puaCaLmUGFEatMvBf4kbG-0KKPs9dw_x04EwlXuruxJ1Lr31rXlHq2lMCWJPDizXEl5p8PBYpaAkaVSX4j93YlgdYECk9OnSdSVn4q1QXPq283fdbJ_2aNraVUgh4MTB18-_zsvWrVF2dO17BS-8rgX0_BwCYVCqzEAS5BdU3sdnF63Cj-4"/>
-<div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-<button class="text-white"><span class="material-symbols-outlined text-xl">delete</span></button>
-</div>
-<input class="absolute top-2 left-2" name="main-image" type="radio"/>
-</div>
-</div>
+  <!-- Input para agregar URL -->
+  <div class="flex gap-2">
+    <input 
+      bind:value={imagenUrl}
+      class="form-input flex-1 rounded-lg text-[#111418] dark:text-white dark:bg-gray-700 border-[#DEE2E6] dark:border-gray-600 h-12 p-3 text-base" 
+      placeholder="https://images.unsplash.com/photo-example?w=400" 
+      type="url"
+    />
+    <button 
+      type="button"
+      class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-semibold text-sm whitespace-nowrap"
+    >
+      Agregar
+    </button>
+  </div>
+  <p class="text-xs text-[#6C757D] dark:text-gray-400">Ingresa la URL de la imagen del producto (ej: desde Unsplash, Imgur, etc.)</p>
+  
+  <!-- Preview de imagen actual -->
+  {#if imagenUrl}
+    <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4">
+      <p class="text-sm font-medium text-[#111418] dark:text-white mb-2">Vista previa:</p>
+      <img 
+        src={imagenUrl} 
+        alt="Vista previa" 
+        class="w-full h-48 object-cover rounded-lg"
+        on:error={() => {}}
+      />
+    </div>
+  {:else}
+    <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
+      <span class="material-symbols-outlined text-4xl text-gray-400 dark:text-gray-500 mx-auto">image</span>
+      <p class="mt-2 text-sm text-[#6C757D] dark:text-gray-400">Ingresa una URL para ver la vista previa</p>
+    </div>
+  {/if}
 </div>
 </div>
 <!-- Estado -->
