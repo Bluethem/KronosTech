@@ -3,47 +3,99 @@
 	import { goto } from '$app/navigation';
 	import { authUser } from '$lib/stores/auth';
 	import { Package, MapPin, CreditCard, Heart, ArrowRight, TrendingUp, ShoppingCart } from 'lucide-svelte';
+	import { checkoutService, type Pedido } from '$lib/services/checkout';
+	import { direccionService } from '$lib/services/direccion';
+	import { tarjetaService } from '$lib/services/tarjeta';
 
 	$: user = $authUser;
 
-	// Datos de ejemplo - estos deberían venir del backend
+	// Datos del dashboard - se cargan desde la BD
 	let stats = {
 		totalPedidos: 0,
 		pedidosPendientes: 0,
 		direccionesGuardadas: 0,
-		tarjetasGuardadas: 0,
-		favoritosCount: 0
+		tarjetasGuardadas: 0
 	};
 
-	let recentOrders: any[] = [];
+	let recentOrders: Pedido[] = [];
 	let loading = true;
 
 	onMount(async () => {
-		// TODO: Cargar estadísticas reales del backend
 		await loadDashboardData();
 	});
 
 	async function loadDashboardData() {
 		loading = true;
 		try {
-			// Simular carga de datos
-			await new Promise(resolve => setTimeout(resolve, 500));
+			// Cargar datos en paralelo desde la BD
+			const [pedidos, direcciones, tarjetas] = await Promise.all([
+				checkoutService.getPedidos().catch(() => []),
+				direccionService.getDirecciones().catch(() => []),
+				tarjetaService.getMetodosPago().catch(() => [])
+			]);
 
-			// Datos de ejemplo
+			// Calcular estadísticas
+			const pedidosPendientes = pedidos.filter(p => 
+				p.estado_pedido === 'pendiente' || 
+				p.estado_pedido === 'confirmado' || 
+				p.estado_pedido === 'preparando' ||
+				p.estado_pedido === 'enviado'
+			);
+
 			stats = {
-				totalPedidos: 12,
-				pedidosPendientes: 2,
-				direccionesGuardadas: 3,
-				tarjetasGuardadas: 2,
-				favoritosCount: 15
+				totalPedidos: pedidos.length,
+				pedidosPendientes: pedidosPendientes.length,
+				direccionesGuardadas: direcciones.length,
+				tarjetasGuardadas: tarjetas.length
 			};
 
-			recentOrders = [];
+			// Últimos 3 pedidos
+			recentOrders = pedidos.slice(0, 3);
 		} catch (error) {
 			console.error('Error al cargar dashboard:', error);
 		} finally {
 			loading = false;
 		}
+	}
+
+	function formatDate(dateString: string): string {
+		const date = new Date(dateString);
+		return date.toLocaleDateString('es-PE', {
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric'
+		});
+	}
+
+	function formatPrice(price: number): string {
+		return new Intl.NumberFormat('es-PE', {
+			style: 'currency',
+			currency: 'PEN'
+		}).format(price);
+	}
+
+	function getEstadoBadgeClass(estado: string): string {
+		const classes: Record<string, string> = {
+			pendiente: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300',
+			confirmado: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
+			preparando: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300',
+			enviado: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300',
+			entregado: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
+			cancelado: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+		};
+		return classes[estado] || classes.pendiente;
+	}
+
+	function getEstadoLabel(estado: string): string {
+		const labels: Record<string, string> = {
+			pendiente: 'Pendiente',
+			confirmado: 'Confirmado',
+			preparando: 'Preparando',
+			enviado: 'Enviado',
+			entregado: 'Entregado',
+			cancelado: 'Cancelado'
+		};
+		return labels[estado] || estado;
 	}
 </script>
 
@@ -206,26 +258,26 @@
 				{:else}
 					<!-- Lista de pedidos -->
 					<div class="space-y-3">
-						{#each recentOrders as order}
+						{#each recentOrders as order (order.id_venta)}
 							<a
-								href="/pedido/{order.id}"
-								class="block rounded-lg border border-border-light dark:border-border-dark p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+								href="/pedido/{order.id_venta}"
+								class="block rounded-xl border border-border-light dark:border-border-dark p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group"
 							>
 								<div class="flex items-center justify-between">
 									<div>
-										<p class="font-semibold text-text-light dark:text-text-dark">
+										<p class="font-semibold text-text-light dark:text-text-dark group-hover:text-primary transition-colors">
 											{order.numero_pedido}
 										</p>
 										<p class="text-sm text-slate-600 dark:text-slate-400">
-											{order.fecha}
+											{formatDate(order.fecha_pedido)}
 										</p>
 									</div>
 									<div class="text-right">
-										<p class="font-semibold text-text-light dark:text-text-dark">
-											S/. {order.total.toFixed(2)}
+										<p class="font-bold text-primary text-lg">
+											{formatPrice(order.total)}
 										</p>
-										<span class="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-											{order.estado}
+										<span class="text-xs px-2.5 py-1 rounded-full {getEstadoBadgeClass(order.estado_pedido)}">
+											{getEstadoLabel(order.estado_pedido)}
 										</span>
 									</div>
 								</div>

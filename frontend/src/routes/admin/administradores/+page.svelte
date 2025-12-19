@@ -51,7 +51,7 @@
 			// Obtener solo administradores y super_admins
 			const todosUsuarios = await adminService.listarUsuarios();
 			administradores = todosUsuarios.filter(
-				(u) => u.rol === 'administrador' || u.rol === 'super_admin'
+				(u) => esAdminRegular(u.rol) || esSuperAdmin(u.rol)
 			);
 		} catch (err: any) {
 			console.error('Error al cargar administradores:', err);
@@ -146,19 +146,20 @@
 	}
 
 	function getRolBadgeClass(rol: string): string {
-		const classes = {
-			administrador: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300',
-			super_admin: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-		};
-		return classes[rol as keyof typeof classes] || classes.administrador;
+		const rolLower = rol.toLowerCase();
+		if (rolLower === 'super_admin' || rolLower === 'superadministrador') {
+			return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300';
+		}
+		return 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300';
 	}
 
 	function getRolLabel(rol: string): string {
-		const labels = {
+		const labels: Record<string, string> = {
 			administrador: 'Administrador',
-			super_admin: 'Super Admin'
+			super_admin: 'Superadministrador',
+			superadministrador: 'Superadministrador'
 		};
-		return labels[rol as keyof typeof labels] || rol;
+		return labels[rol.toLowerCase()] || rol;
 	}
 
 	function formatDate(dateString?: string): string {
@@ -171,10 +172,21 @@
 		});
 	}
 
-	$: administradoresActivos = administradores.filter((a) => a.activo);
-	$: administradoresInactivos = administradores.filter((a) => !a.activo);
-	$: superAdmins = administradores.filter((a) => a.rol === 'super_admin');
-	$: adminRegulares = administradores.filter((a) => a.rol === 'administrador');
+	// Función para verificar si es super admin (maneja variaciones)
+	function esSuperAdmin(rol: string): boolean {
+		return rol === 'super_admin' || rol.toLowerCase() === 'superadministrador';
+	}
+
+	// Función para verificar si es admin regular
+	function esAdminRegular(rol: string): boolean {
+		return rol === 'administrador';
+	}
+
+	// Reactive: calcular estadísticas
+	$: totalAdmins = administradores.length;
+	$: administradoresActivos = administradores.filter((a) => a.activo).length;
+	$: superAdminsCount = administradores.filter((a) => esSuperAdmin(a.rol)).length;
+	$: adminRegularesCount = administradores.filter((a) => esAdminRegular(a.rol)).length;
 </script>
 
 <svelte:head>
@@ -223,7 +235,7 @@
 				<div>
 					<p class="text-sm text-slate-600 dark:text-slate-400">Total</p>
 					<p class="text-3xl font-bold text-text-light dark:text-text-dark mt-1">
-						{administradores.length}
+						{totalAdmins}
 					</p>
 				</div>
 				<div class="w-12 h-12 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
@@ -237,7 +249,7 @@
 				<div>
 					<p class="text-sm text-slate-600 dark:text-slate-400">Activos</p>
 					<p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
-						{administradoresActivos.length}
+						{administradoresActivos}
 					</p>
 				</div>
 				<div class="w-12 h-12 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
@@ -249,9 +261,9 @@
 		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-6">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-sm text-slate-600 dark:text-slate-400">Super Admins</p>
+					<p class="text-sm text-slate-600 dark:text-slate-400">Superadministradores</p>
 					<p class="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
-						{superAdmins.length}
+						{superAdminsCount}
 					</p>
 				</div>
 				<div class="w-12 h-12 rounded-lg bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center">
@@ -263,9 +275,9 @@
 		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-6">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-sm text-slate-600 dark:text-slate-400">Admins</p>
+					<p class="text-sm text-slate-600 dark:text-slate-400">Administradores</p>
 					<p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-						{adminRegulares.length}
+						{adminRegularesCount}
 					</p>
 				</div>
 				<div class="w-12 h-12 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
@@ -303,7 +315,7 @@
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				{#each administradores as admin}
+				{#each administradores as admin (admin.id_usuario)}
 					<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
 						<!-- Header -->
 						<div class="p-4 border-b border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/30">

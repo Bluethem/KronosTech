@@ -110,7 +110,15 @@
   }
 
   function formatCurrency(amount: number): string {
-    return `$${amount.toFixed(2)}`;
+    return new Intl.NumberFormat('es-PE', {
+      style: 'currency',
+      currency: 'PEN'
+    }).format(amount);
+  }
+
+  function isProcesado(estado: string | null): boolean {
+    const normalizado = estado?.toLowerCase();
+    return normalizado === 'completado' || normalizado === 'rechazado';
   }
 
   function getEstadoBadgeClass(estado: string | null): string {
@@ -524,7 +532,11 @@
                       <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatDate(reembolso.fecha_solicitado)}</td>
                       <td class="px-4 py-4 text-sm font-medium">
                         <div class="flex items-center gap-2">
-                          <button class="px-3 py-1.5 text-xs font-semibold text-white bg-primary rounded-md hover:bg-blue-600 whitespace-nowrap" on:click={() => openReviewModal(reembolso)}>Procesar</button>
+                          {#if !isProcesado(reembolso.estado)}
+                            <button class="px-3 py-1.5 text-xs font-semibold text-white bg-primary rounded-md hover:bg-blue-600 whitespace-nowrap" on:click={() => openReviewModal(reembolso)}>Procesar</button>
+                          {:else}
+                            <span class="px-3 py-1.5 text-xs font-semibold text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-md whitespace-nowrap cursor-not-allowed">Procesado</span>
+                          {/if}
                           <button class="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 whitespace-nowrap" on:click={() => openDetailsModal(reembolso)}>Ver detalle</button>
                         </div>
                       </td>

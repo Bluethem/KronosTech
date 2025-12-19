@@ -51,7 +51,6 @@
 
 		try {
 			usuarios = await adminService.listarUsuarios();
-			aplicarFiltros();
 		} catch (err: any) {
 			console.error('Error al cargar usuarios:', err);
 			error = err.message || 'Error al cargar usuarios';
@@ -60,38 +59,27 @@
 		}
 	}
 
-	function aplicarFiltros() {
-		usuariosFiltrados = usuarios.filter((usuario) => {
-			// Filtro por rol
-			if (filtroRol && usuario.rol !== filtroRol) return false;
+	// Reactive: filtrar usuarios automáticamente cuando cambien los filtros
+	$: usuariosFiltrados = usuarios.filter((usuario) => {
+		// Filtro por rol
+		if (filtroRol && usuario.rol !== filtroRol) return false;
 
-			// Filtro por estado
-			if (filtroEstado === 'activo' && !usuario.activo) return false;
-			if (filtroEstado === 'inactivo' && usuario.activo) return false;
+		// Filtro por estado
+		if (filtroEstado === 'activo' && !usuario.activo) return false;
+		if (filtroEstado === 'inactivo' && usuario.activo) return false;
 
-			// Búsqueda por nombre, apellido o email
-			if (busqueda) {
-				const searchLower = busqueda.toLowerCase();
-				const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`.toLowerCase();
-				const email = usuario.email.toLowerCase();
-				if (!nombreCompleto.includes(searchLower) && !email.includes(searchLower)) {
-					return false;
-				}
+		// Búsqueda por nombre, apellido o email
+		if (busqueda) {
+			const searchLower = busqueda.toLowerCase();
+			const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`.toLowerCase();
+			const email = usuario.email.toLowerCase();
+			if (!nombreCompleto.includes(searchLower) && !email.includes(searchLower)) {
+				return false;
 			}
-
-			return true;
-		});
-	}
-
-	$: {
-		// Reactive: aplicar filtros cuando cambien
-		filtroRol;
-		filtroEstado;
-		busqueda;
-		if (usuarios.length > 0) {
-			aplicarFiltros();
 		}
-	}
+
+		return true;
+	});
 
 	function abrirModalEditar(usuario: UsuarioAdmin) {
 		usuarioEditando = usuario;
@@ -325,7 +313,7 @@
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border-light dark:divide-border-dark">
-							{#each usuariosFiltrados as usuario}
+							{#each usuariosFiltrados as usuario (usuario.id_usuario)}
 								<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
 									<!-- Usuario -->
 									<td class="px-6 py-4 whitespace-nowrap">

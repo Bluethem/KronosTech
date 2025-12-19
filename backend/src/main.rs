@@ -27,7 +27,9 @@ use routes::{
     producto_routes,
     descuento_routes,
     cupon_routes,
-    reembolso_routes
+    reembolso_routes,
+    log_routes,
+    config_routes
 };
 use tower_http::cors::CorsLayer;
 
@@ -72,7 +74,11 @@ async fn main() {
         .nest("/api", producto_routes(pool.clone()))
         .nest("/api", descuento_routes(pool.clone()))
         .nest("/api", cupon_routes(pool.clone()))
-        .nest("/api", reembolso_routes(pool))
+        .nest("/api", reembolso_routes(pool.clone()))
+        // Rutas de logs y auditoría
+        .nest("/api/logs", log_routes(pool.clone()))
+        // Rutas de configuración del sistema
+        .nest("/api/config", config_routes(pool))
         .layer(cors);
 
     let addr = settings.server_address();
@@ -134,6 +140,16 @@ async fn main() {
     println!("   GET    /api/reembolsos");
     println!("   POST   /api/reembolsos");
     println!("   PATCH  /api/reembolsos/{{id}}/estado");
+    println!("   === Logs y Auditoría ===");
+    println!("   GET    /api/logs");
+    println!("   POST   /api/logs");
+    println!("   DELETE /api/logs/limpiar");
+    println!("   === Configuración del Sistema ===");
+    println!("   GET    /api/config");
+    println!("   PUT    /api/config");
+    println!("   GET    /api/config/session-timeout");
+    println!("   GET    /api/config/:clave");
+    println!("   PUT    /api/config/:clave");
 
     // Iniciar servidor
     let listener = tokio::net::TcpListener::bind(&addr)

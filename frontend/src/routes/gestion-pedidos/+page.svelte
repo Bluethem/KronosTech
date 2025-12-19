@@ -1,10 +1,18 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	
 	export let data: PageData;
 	
 	$: orders = data.orders || [];
+	
+	// Variables para los filtros
+	let searchQuery = data.filtros?.search || '';
+	let filtroEstado = data.filtros?.estado || 'Todos';
+	let filtroEstadoPago = data.filtros?.estado_pago || 'Todos';
+	let fechaDesde = data.filtros?.fecha_inicio || '';
+	let fechaHasta = data.filtros?.fecha_fin || '';
 	
 	let jsPDF: any;
 	let autoTable: any;
@@ -17,10 +25,44 @@
 		autoTable = autoTableModule.default;
 	});
 	
+	// Función para aplicar filtros
+	function aplicarFiltros() {
+		const params = new URLSearchParams();
+		
+		if (searchQuery.trim()) params.set('search', searchQuery.trim());
+		if (filtroEstado && filtroEstado !== 'Todos') params.set('estado', filtroEstado);
+		if (filtroEstadoPago && filtroEstadoPago !== 'Todos') params.set('estado_pago', filtroEstadoPago);
+		if (fechaDesde) params.set('fecha_inicio', fechaDesde);
+		if (fechaHasta) params.set('fecha_fin', fechaHasta);
+		
+		const queryString = params.toString();
+		goto(`/gestion-pedidos${queryString ? '?' + queryString : ''}`, { invalidateAll: true });
+		currentPage = 1; // Reset a la primera página
+	}
+	
+	// Función para limpiar filtros
+	function limpiarFiltros() {
+		searchQuery = '';
+		filtroEstado = 'Todos';
+		filtroEstadoPago = 'Todos';
+		fechaDesde = '';
+		fechaHasta = '';
+		goto('/gestion-pedidos', { invalidateAll: true });
+		currentPage = 1;
+	}
+	
+	// Manejar búsqueda con Enter
+	function handleSearchKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			aplicarFiltros();
+		}
+	}
+	
 	function formatDate(dateString: string | null): string {
 		if (!dateString) return 'N/A';
 		const date = new Date(dateString);
-		return date.toLocaleString('es-ES', {
+		return date.toLocaleString('es-PE', {
+			timeZone: 'America/Lima',
 			year: 'numeric',
 			month: '2-digit',
 			day: '2-digit',
@@ -425,52 +467,50 @@
 <div class="text-[#617589] dark:text-gray-400 flex border-none bg-background-light dark:bg-background-dark items-center justify-center pl-4 rounded-l-lg border-r-0">
 <span class="material-symbols-outlined">search</span>
 </div>
-<input bind:value={searchQuery} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-background-light dark:bg-background-dark h-full placeholder:text-[#617589] dark:placeholder:text-gray-500 px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal" placeholder="Buscar por número de pedido, cliente, email..."/>
+<input bind:value={searchQuery} on:keydown={handleSearchKeydown} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-background-light dark:bg-background-dark h-full placeholder:text-[#617589] dark:placeholder:text-gray-500 px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal" placeholder="Buscar por número de pedido, cliente, email..."/>
 </div>
 </label>
 </div>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Estado del Pedido</p>
-<select bind:value={filterStatus} class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
-<option>Todos</option>
-<option>Pendiente</option>
-<option>Confirmado</option>
-<option>En Proceso</option>
-<option>Enviado</option>
-<option>Entregado</option>
-<option>Cancelado</option>
+<select bind:value={filtroEstado} class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
+<option value="Todos">Todos</option>
+<option value="pendiente">Pendiente</option>
+<option value="confirmado">Confirmado</option>
+<option value="procesando">En Proceso</option>
+<option value="enviado">Enviado</option>
+<option value="entregado">Entregado</option>
+<option value="cancelado">Cancelado</option>
 </select>
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Estado de Pago</p>
-<select bind:value={filterPaymentStatus} class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
-<option>Todos</option>
-<option>Pendiente</option>
-<option>Completado</option>
-<option>Fallido</option>
-<option>Reembolsado</option>
+<select bind:value={filtroEstadoPago} class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
+<option value="Todos">Todos</option>
+<option value="pendiente">Pendiente</option>
+<option value="completado">Completado</option>
+<option value="fallido">Fallido</option>
+<option value="reembolsado">Reembolsado</option>
 </select>
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Fecha desde</p>
 <div class="relative">
-<input bind:value={filterDateFrom} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 pl-10 text-sm font-normal" type="date"/>
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">calendar_today</span>
+<input bind:value={fechaDesde} type="date" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 text-sm font-normal"/>
 </div>
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Fecha hasta</p>
 <div class="relative">
-<input bind:value={filterDateTo} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 pl-10 text-sm font-normal" type="date"/>
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">calendar_today</span>
+<input bind:value={fechaHasta} type="date" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 text-sm font-normal"/>
 </div>
 </label>
 </div>
 <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-<button on:click={clearFilters} class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-transparent text-gray-600 dark:text-gray-300 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-800">
+<button on:click={limpiarFiltros} class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-transparent text-gray-600 dark:text-gray-300 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-800">
 <span class="truncate">Limpiar filtros</span>
 </button>
-<button on:click={() => currentPage = 1} class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<button on:click={aplicarFiltros} class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
 <span class="truncate">Aplicar filtros</span>
 </button>
 </div>
@@ -489,7 +529,7 @@
 </tr>
 </thead>
 <tbody>
-{#each paginatedOrders as order}
+{#each paginatedOrders as order (order.id_venta)}
 <tr class="{isPendingOver24h(order.fecha_pedido, order.estado) ? 'bg-red-50 dark:bg-red-500/10' : 'bg-white dark:bg-gray-900/50'} border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
 <th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
 <div class="flex items-center gap-2">

@@ -1,17 +1,46 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { invalidateAll } from '$app/navigation';
   
   export let data: PageData;
   let activeTab = 'general';
   let internalNote = '';
 
+  // Modales
+  let showChangeStatusModal = false;
+  let showCancelModal = false;
+  let selectedNewStatus = '';
+  let cancelReason = '';
+  let isProcessing = false;
+  let toastMessage = '';
+  let toastType: 'success' | 'error' = 'success';
+
+  // Estados disponibles para el pedido
+  const estadosPedido = [
+    { value: 'pendiente', label: 'Pendiente' },
+    { value: 'confirmado', label: 'Confirmado' },
+    { value: 'procesando', label: 'Procesando' },
+    { value: 'enviado', label: 'Enviado' },
+    { value: 'entregado', label: 'Entregado' },
+    { value: 'devuelto', label: 'Devuelto' }
+  ];
+
   $: order = data.order?.venta;
   $: products = data.order?.productos || [];
+
+  function showToast(message: string, type: 'success' | 'error') {
+    toastMessage = message;
+    toastType = type;
+    setTimeout(() => {
+      toastMessage = '';
+    }, 3000);
+  }
 
   function formatDate(dateString: string | null): string {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleString('es-ES', {
+    return date.toLocaleString('es-PE', {
+      timeZone: 'America/Lima',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -62,6 +91,83 @@
     return statusMap[normalizedStatus] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   }
 
+  function getPaymentMethodIcon(tipo: string | null): string {
+    if (!tipo) return 'payments';
+    const tipoLower = tipo.toLowerCase();
+    if (tipoLower.includes('yape') || tipoLower.includes('plin')) return 'smartphone';
+    if (tipoLower.includes('tarjeta') || tipoLower.includes('credito') || tipoLower.includes('debito')) return 'credit_card';
+    if (tipoLower.includes('efectivo') || tipoLower.includes('contra')) return 'payments';
+    if (tipoLower.includes('transferencia')) return 'account_balance';
+    return 'payments';
+  }
+
+  // Abrir modal de cambiar estado
+  function openChangeStatusModal() {
+    selectedNewStatus = order.estado || 'pendiente';
+    showChangeStatusModal = true;
+  }
+
+  // Confirmar cambio de estado
+  async function confirmChangeStatus() {
+    if (!selectedNewStatus || selectedNewStatus === order.estado) {
+      showToast('Selecciona un estado diferente', 'error');
+      return;
+    }
+
+    isProcessing = true;
+    try {
+      const response = await fetch(`http://localhost:3000/api/ventas/${order.id_venta}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: selectedNewStatus })
+      });
+
+      if (response.ok) {
+        showToast('Estado actualizado correctamente', 'success');
+        showChangeStatusModal = false;
+        // Recargar datos
+        await invalidateAll();
+      } else {
+        showToast('Error al actualizar el estado', 'error');
+      }
+    } catch (e) {
+      showToast('Error de conexión', 'error');
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  // Abrir modal de cancelar pedido
+  function openCancelModal() {
+    cancelReason = '';
+    showCancelModal = true;
+  }
+
+  // Confirmar cancelación
+  async function confirmCancel() {
+    isProcessing = true;
+    try {
+      const response = await fetch(`http://localhost:3000/api/ventas/${order.id_venta}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'cancelado' })
+      });
+
+      if (response.ok) {
+        showToast('Pedido cancelado correctamente', 'success');
+        showCancelModal = false;
+        // Recargar datos
+        await invalidateAll();
+      } else {
+        showToast('Error al cancelar el pedido', 'error');
+      }
+    } catch (e) {
+      showToast('Error de conexión', 'error');
+    } finally {
+      isProcessing = false;
+    }
+  }
+
   async function saveNote() {
     if (!internalNote.trim()) return;
     
@@ -73,13 +179,13 @@
       });
       
       if (response.ok) {
-        alert('Nota guardada exitosamente');
+        showToast('Nota guardada exitosamente', 'success');
         order.notas_admin = internalNote;
       } else {
-        alert('Error al guardar la nota');
+        showToast('Error al guardar la nota', 'error');
       }
     } catch (e) {
-      alert('Error de conexión');
+      showToast('Error de conexión', 'error');
     }
   }
 </script>
@@ -123,10 +229,18 @@
 <p class="text-[#617589] dark:text-gray-400 text-sm font-normal leading-normal">Fecha de pedido: {formatDate(order.fecha_pedido)}. Última actualización: {formatDate(order.fecha_actualizacion)}</p>
 </div>
 <div class="flex gap-3 flex-wrap justify-start sm:justify-end shrink-0">
-<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+<button 
+  class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-50"
+  on:click={openChangeStatusModal}
+  disabled={order.estado === 'cancelado' || order.estado === 'entregado'}
+>
 <span class="truncate">Cambiar Estado</span>
 </button>
-<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-red-600/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-red-600/20 transition-colors">
+<button 
+  class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-red-600/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-red-600/20 transition-colors disabled:opacity-50"
+  on:click={openCancelModal}
+  disabled={order.estado === 'cancelado' || order.estado === 'entregado' || order.estado === 'enviado'}
+>
 <span class="truncate">Cancelar Pedido</span>
 </button>
 </div>
@@ -292,7 +406,7 @@
 {#each products as product}
 <tr class="bg-white border-b dark:bg-background-dark dark:border-gray-700">
 <td class="px-6 py-4">
-<img alt={product.nombre_producto} class="w-10 h-10 rounded object-cover" src={product.imagen_principal || 'https://via.placeholder.com/40'}/>
+<img alt={product.nombre_producto} class="w-10 h-10 rounded object-cover" src={product.imagen_principal || '/placeholder-product.svg'}/>
 </td>
 <th class="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap" scope="row">
 <div>{product.nombre_producto}</div>
@@ -358,8 +472,8 @@
             <div>
               <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Método de Pago</p>
               <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">payments</span>
-                <span class="font-medium text-gray-800 dark:text-white">Tarjeta de Crédito</span>
+                <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">{getPaymentMethodIcon(order.tipo_metodo_pago)}</span>
+                <span class="font-medium text-gray-800 dark:text-white">{order.nombre_metodo_pago || 'N/A'}</span>
               </div>
             </div>
             <div>
@@ -419,7 +533,11 @@
           <h3 class="text-lg font-bold tracking-tight dark:text-white">Notas del Cliente</h3>
         </div>
         <div class="p-5">
-          <p class="text-gray-600 dark:text-gray-300 italic">"Por favor, entregar en horario de tarde si es posible. El timbre del piso 4A a veces no funciona, llamar al móvil si no contesto. Gracias."</p>
+          {#if order.notas_cliente}
+            <p class="text-gray-600 dark:text-gray-300 italic">"{order.notas_cliente}"</p>
+          {:else}
+            <p class="text-gray-400 dark:text-gray-500 italic">Sin notas del cliente</p>
+          {/if}
         </div>
       </div>
     </div>
@@ -543,4 +661,149 @@
 </div>
 </div>
 </div>
+{/if}
+
+<!-- Modal: Cambiar Estado -->
+{#if showChangeStatusModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      on:click={() => showChangeStatusModal = false}
+      on:keydown={(e) => e.key === 'Escape' && (showChangeStatusModal = false)}
+      role="button"
+      tabindex="0"
+    ></div>
+    
+    <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-primary">swap_horiz</span>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Cambiar Estado del Pedido</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Pedido #{order.numero_pedido}</p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Estado actual: 
+            <span class="font-medium px-2 py-0.5 rounded-full {getStatusBadgeClass(order.estado)}">{order.estado}</span>
+          </p>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Nuevo estado:</label>
+          <select 
+            bind:value={selectedNewStatus}
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+          >
+            {#each estadosPedido as estado}
+              <option value={estado.value} disabled={estado.value === order.estado}>{estado.label}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button
+          type="button"
+          class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200"
+          on:click={() => showChangeStatusModal = false}
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary hover:bg-primary/90 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          on:click={confirmChangeStatus}
+          disabled={isProcessing || selectedNewStatus === order.estado}
+        >
+          {#if isProcessing}
+            <span class="animate-spin">⏳</span>
+          {/if}
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Modal: Cancelar Pedido -->
+{#if showCancelModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      on:click={() => showCancelModal = false}
+      on:keydown={(e) => e.key === 'Escape' && (showCancelModal = false)}
+      role="button"
+      tabindex="0"
+    ></div>
+    
+    <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+          <span class="material-symbols-outlined text-red-600 dark:text-red-400">cancel</span>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Cancelar Pedido</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Pedido #{order.numero_pedido}</p>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+        <p class="text-sm text-red-700 dark:text-red-400">
+          ⚠️ Esta acción no se puede deshacer. El pedido será marcado como cancelado y se notificará al cliente.
+        </p>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Motivo de cancelación (opcional):</label>
+        <textarea 
+          bind:value={cancelReason}
+          rows="3"
+          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+          placeholder="Ej: Producto agotado, solicitud del cliente..."
+        ></textarea>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button
+          type="button"
+          class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200"
+          on:click={() => showCancelModal = false}
+        >
+          Volver
+        </button>
+        <button
+          type="button"
+          class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          on:click={confirmCancel}
+          disabled={isProcessing}
+        >
+          {#if isProcessing}
+            <span class="animate-spin">⏳</span>
+          {/if}
+          Cancelar Pedido
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Toast de notificación -->
+{#if toastMessage}
+  <div class="fixed bottom-6 right-6 z-50">
+    <div class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg {toastType === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white">
+      <span class="material-symbols-outlined text-base">{toastType === 'success' ? 'check_circle' : 'error'}</span>
+      <p class="text-sm font-medium">{toastMessage}</p>
+      <button
+        type="button"
+        class="p-1 hover:bg-white/20 rounded-lg transition-colors"
+        on:click={() => toastMessage = ''}
+      >
+        <span class="material-symbols-outlined text-base">close</span>
+      </button>
+    </div>
+  </div>
 {/if}

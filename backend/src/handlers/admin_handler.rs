@@ -133,27 +133,71 @@ pub async fn listar_usuarios_handler(
     let limit = query.limit.unwrap_or(50).min(100);
     let offset = query.offset.unwrap_or(0);
 
-    let mut sql = String::from(
-        "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
-         telefono, dni, fecha_registro, ultima_conexion
-         FROM usuario WHERE 1=1"
-    );
-
-    if let Some(rol) = &query.rol {
-        sql.push_str(&format!(" AND rol = '{}'", rol));
-    }
-
-    if let Some(activo) = query.activo {
-        sql.push_str(&format!(" AND activo = {}", activo));
-    }
-
-    sql.push_str(" ORDER BY fecha_registro DESC");
-    sql.push_str(&format!(" LIMIT {} OFFSET {}", limit, offset));
-
-    match sqlx::query_as::<_, UsuarioAdmin>(&sql)
+    // Construir query con parámetros seguros
+    let result = if let Some(rol) = &query.rol {
+        if let Some(activo) = query.activo {
+            // Filtro por rol Y activo
+            sqlx::query_as::<_, UsuarioAdmin>(
+                "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
+                 telefono, dni, fecha_registro, ultima_conexion
+                 FROM usuario
+                 WHERE rol = $1::rol_usuario AND activo = $2
+                 ORDER BY fecha_registro DESC
+                 LIMIT $3 OFFSET $4"
+            )
+            .bind(rol)
+            .bind(activo)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&pool)
+            .await
+        } else {
+            // Solo filtro por rol
+            sqlx::query_as::<_, UsuarioAdmin>(
+                "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
+                 telefono, dni, fecha_registro, ultima_conexion
+                 FROM usuario
+                 WHERE rol = $1::rol_usuario
+                 ORDER BY fecha_registro DESC
+                 LIMIT $2 OFFSET $3"
+            )
+            .bind(rol)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&pool)
+            .await
+        }
+    } else if let Some(activo) = query.activo {
+        // Solo filtro por activo
+        sqlx::query_as::<_, UsuarioAdmin>(
+            "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
+             telefono, dni, fecha_registro, ultima_conexion
+             FROM usuario
+             WHERE activo = $1
+             ORDER BY fecha_registro DESC
+             LIMIT $2 OFFSET $3"
+        )
+        .bind(activo)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&pool)
         .await
-    {
+    } else {
+        // Sin filtros
+        sqlx::query_as::<_, UsuarioAdmin>(
+            "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
+             telefono, dni, fecha_registro, ultima_conexion
+             FROM usuario
+             ORDER BY fecha_registro DESC
+             LIMIT $1 OFFSET $2"
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&pool)
+        .await
+    };
+
+    match result {
         Ok(usuarios) => Ok((
             StatusCode::OK,
             Json(ApiResponse {
@@ -194,40 +238,12 @@ pub async fn actualizar_usuario_admin_handler(
         ));
     }
 
-    // Construir query dinámicamente
-    let mut updates = Vec::new();
-
-    if let Some(nombre) = &payload.nombre {
-        updates.push(format!("nombre = '{}'", nombre));
-    }
-
-    if let Some(apellido) = &payload.apellido {
-        updates.push(format!("apellido = '{}'", apellido));
-    }
-
-    if let Some(rol) = &payload.rol {
-        // Validar rol
-        if !["cliente", "administrador", "super_admin"].contains(&rol.as_str()) {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    success: false,
-                    message: "Rol inválido".to_string(),
-                }),
-            ));
-        }
-        updates.push(format!("rol = '{}'::rol_usuario", rol));
-    }
-
-    if let Some(activo) = payload.activo {
-        updates.push(format!("activo = {}", activo));
-    }
-
-    if let Some(email_verificado) = payload.email_verificado {
-        updates.push(format!("email_verificado = {}", email_verificado));
-    }
-
-    if updates.is_empty() {
+    // Validar que al menos se proporcione un campo
+    if payload.nombre.is_none()
+        && payload.apellido.is_none()
+        && payload.rol.is_none()
+        && payload.activo.is_none()
+        && payload.email_verificado.is_none() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
@@ -237,15 +253,68 @@ pub async fn actualizar_usuario_admin_handler(
         ));
     }
 
-    let sql = format!(
-        "UPDATE usuario SET {} WHERE id_usuario = {} RETURNING id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado, telefono, dni, fecha_registro, ultima_conexion",
-        updates.join(", "),
-        id_usuario
-    );
+    // Validar rol si se proporciona
+    if let Some(rol) = &payload.rol {
+        if !["cliente", "administrador", "super_admin"].contains(&rol.as_str()) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    success: false,
+                    message: "Rol inválido".to_string(),
+                }),
+            ));
+        }
+    }
 
-    match sqlx::query_as::<_, UsuarioAdmin>(&sql)
-        .fetch_one(&pool)
-        .await
+    // Obtener usuario actual
+    let usuario_actual = sqlx::query_as::<_, UsuarioAdmin>(
+        "SELECT id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
+         telefono, dni, fecha_registro, ultima_conexion
+         FROM usuario WHERE id_usuario = $1"
+    )
+    .bind(id_usuario)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                success: false,
+                message: format!("Error al buscar usuario: {}", e),
+            }),
+        )
+    })?;
+
+    let usuario_actual = usuario_actual.ok_or((
+        StatusCode::NOT_FOUND,
+        Json(ErrorResponse {
+            success: false,
+            message: "Usuario no encontrado".to_string(),
+        }),
+    ))?;
+
+    // Actualizar con parámetros seguros
+    let nombre = payload.nombre.unwrap_or(usuario_actual.nombre);
+    let apellido = payload.apellido.unwrap_or(usuario_actual.apellido);
+    let rol = payload.rol.unwrap_or(usuario_actual.rol);
+    let activo = payload.activo.unwrap_or(usuario_actual.activo);
+    let email_verificado = payload.email_verificado.unwrap_or(usuario_actual.email_verificado);
+
+    match sqlx::query_as::<_, UsuarioAdmin>(
+        "UPDATE usuario
+         SET nombre = $1, apellido = $2, rol = $3::rol_usuario, activo = $4, email_verificado = $5
+         WHERE id_usuario = $6
+         RETURNING id_usuario, nombre, apellido, email, rol::TEXT as rol, activo, email_verificado,
+                   telefono, dni, fecha_registro, ultima_conexion"
+    )
+    .bind(&nombre)
+    .bind(&apellido)
+    .bind(&rol)
+    .bind(activo)
+    .bind(email_verificado)
+    .bind(id_usuario)
+    .fetch_one(&pool)
+    .await
     {
         Ok(usuario) => Ok((
             StatusCode::OK,
