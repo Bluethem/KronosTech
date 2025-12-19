@@ -17,6 +17,11 @@
   let searchQuery = '';
   let tipoFilter = '';
   let estadoFilter = '';
+  let fechaDesde = '';
+  let fechaHasta = '';
+  
+  // All descuentos (unfiltered)
+  let allDescuentos = [];
   
   onMount(async () => {
     await Promise.all([
@@ -28,14 +33,9 @@
   async function fetchDescuentos() {
     loading = true;
     try {
-      let url = 'http://localhost:3000/api/descuentos?';
-      if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
-      if (tipoFilter) url += `tipo=${encodeURIComponent(tipoFilter)}&`;
-      if (estadoFilter) url += `estado=${encodeURIComponent(estadoFilter)}&`;
-      
-      const response = await fetch(url);
+      const response = await fetch('http://localhost:3000/api/descuentos');
       if (response.ok) {
-        descuentos = await response.json();
+        allDescuentos = await response.json();
       }
     } catch (e) {
       console.error('Error fetching descuentos:', e);
@@ -109,13 +109,51 @@
     return 'Vigente';
   }
 
-  // Debounce search
-  let searchTimeout;
-  function handleSearch() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      fetchDescuentos();
-    }, 300);
+  
+  // Frontend filtering with case-insensitive comparisons
+  $: descuentos = allDescuentos.filter(descuento => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = descuento.nombre?.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+    
+    // Tipo filter (case-insensitive)
+    if (tipoFilter && descuento.tipo_descuento?.toLowerCase() !== tipoFilter.toLowerCase()) {
+      return false;
+    }
+    
+    // Estado filter (case-insensitive)
+    if (estadoFilter) {
+      const estadoActual = getEstadoText(descuento).toLowerCase();
+      if (estadoActual !== estadoFilter.toLowerCase()) {
+        return false;
+      }
+    }
+    
+    // Date range filter
+    if (fechaDesde && descuento.fecha_inicio) {
+      const inicioDescuento = new Date(descuento.fecha_inicio);
+      const desde = new Date(fechaDesde);
+      if (inicioDescuento < desde) return false;
+    }
+    
+    if (fechaHasta && descuento.fecha_fin) {
+      const finDescuento = new Date(descuento.fecha_fin);
+      const hasta = new Date(fechaHasta);
+      if (finDescuento > hasta) return false;
+    }
+    
+    return true;
+  });
+  
+  function clearFilters() {
+    searchQuery = '';
+    tipoFilter = '';
+    estadoFilter = '';
+    fechaDesde = '';
+    fechaHasta = '';
   }
   
   async function deleteDescuento(descuento) {
@@ -214,7 +252,6 @@
                 </div>
                 <input 
                   bind:value={searchQuery}
-                  on:input={handleSearch}
                   class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-background-light dark:bg-slate-800 focus:border-none h-full placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 pl-2 text-sm font-normal leading-normal" 
                   placeholder="Buscar por nombre de descuento..." 
                 />
@@ -222,19 +259,42 @@
             </label>
           </div>
           <div class="flex gap-3 overflow-x-auto pb-2">
-            <select bind:value={tipoFilter} on:change={fetchDescuentos} class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-background-light dark:bg-slate-800 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors border-none outline-none cursor-pointer">
+            <select bind:value={tipoFilter} class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-background-light dark:bg-slate-800 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors border-none outline-none cursor-pointer">
               <option value="">Todos los tipos</option>
               <option value="Porcentaje">Porcentaje</option>
               <option value="Monto Fijo">Monto Fijo</option>
               <option value="Envío Gratis">Envío Gratis</option>
             </select>
-            <select bind:value={estadoFilter} on:change={fetchDescuentos} class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-background-light dark:bg-slate-800 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors border-none outline-none cursor-pointer">
+            <select bind:value={estadoFilter} class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-background-light dark:bg-slate-800 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors border-none outline-none cursor-pointer">
               <option value="">Todos los estados</option>
               <option value="vigente">Vigente</option>
               <option value="proximo">Próximo</option>
               <option value="vencido">Vencido</option>
               <option value="inactivo">Inactivo</option>
             </select>
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-gray-500 dark:text-gray-400">calendar_today</span>
+              <input 
+                bind:value={fechaDesde}
+                type="date"
+                class="flex h-10 shrink-0 items-center rounded-lg bg-background-light dark:bg-slate-800 px-3 text-gray-800 dark:text-gray-200 border-none outline-none text-sm"
+                placeholder="Desde"
+              />
+              <span class="text-gray-500 dark:text-gray-400">-</span>
+              <input 
+                bind:value={fechaHasta}
+                type="date"
+                class="flex h-10 shrink-0 items-center rounded-lg bg-background-light dark:bg-slate-800 px-3 text-gray-800 dark:text-gray-200 border-none outline-none text-sm"
+                placeholder="Hasta"
+              />
+            </div>
+            <button 
+              on:click={clearFilters}
+              class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-gray-200 dark:bg-slate-700 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors"
+            >
+              <span class="material-symbols-outlined text-sm">filter_alt_off</span>
+              <span class="text-sm font-medium">Limpiar</span>
+            </button>
           </div>
         </div>
         <div class="overflow-x-auto">

@@ -337,14 +337,68 @@
 		}
 	}
 	
+	// Filters
+	let searchQuery = '';
+	let filterStatus = 'Todos';
+	let filterPaymentStatus = 'Todos';
+	let filterDateFrom = '';
+	let filterDateTo = '';
+	
+	// Filtered orders
+	$: filteredOrders = orders.filter(order => {
+		// Search filter
+		if (searchQuery) {
+			const query = searchQuery.toLowerCase();
+			const matchesSearch = 
+				order.numero_pedido?.toLowerCase().includes(query) ||
+				order.nombre_usuario?.toLowerCase().includes(query) ||
+				order.email_usuario?.toLowerCase().includes(query);
+			if (!matchesSearch) return false;
+		}
+		
+		// Status filter
+		if (filterStatus !== 'Todos' && order.estado?.toLowerCase() !== filterStatus.toLowerCase()) {
+			return false;
+		}
+		
+		// Payment status filter
+		if (filterPaymentStatus !== 'Todos' && order.estado_pago?.toLowerCase() !== filterPaymentStatus.toLowerCase()) {
+			return false;
+		}
+		
+		// Date filters (simplified - you can enhance this)
+		if (filterDateFrom && order.fecha_pedido) {
+			const orderDate = new Date(order.fecha_pedido);
+			const fromDate = new Date(filterDateFrom);
+			if (orderDate < fromDate) return false;
+		}
+		
+		if (filterDateTo && order.fecha_pedido) {
+			const orderDate = new Date(order.fecha_pedido);
+			const toDate = new Date(filterDateTo);
+			if (orderDate > toDate) return false;
+		}
+		
+		return true;
+	});
+	
+	function clearFilters() {
+		searchQuery = '';
+		filterStatus = 'Todos';
+		filterPaymentStatus = 'Todos';
+		filterDateFrom = '';
+		filterDateTo = '';
+		currentPage = 1;
+	}
+	
 	// Pagination
 	let currentPage = 1;
 	let itemsPerPage = 10;
 	
-	$: totalPages = Math.ceil(orders.length / itemsPerPage);
-	$: paginatedOrders = orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+	$: totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+	$: paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 	$: startIndex = (currentPage - 1) * itemsPerPage + 1;
-	$: endIndex = Math.min(currentPage * itemsPerPage, orders.length);
+	$: endIndex = Math.min(currentPage * itemsPerPage, filteredOrders.length);
 	
 	function goToPage(page: number) {
 		if (page >= 1 && page <= totalPages) {
@@ -517,7 +571,7 @@ No se encontraron pedidos
 </div>
 <nav aria-label="Table navigation" class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-3 md:space-y-0 p-4">
 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-	Mostrando <span class="font-semibold text-gray-900 dark:text-white">{startIndex}-{endIndex}</span> de <span class="font-semibold text-gray-900 dark:text-white">{orders.length}</span> resultados
+	Mostrando <span class="font-semibold text-gray-900 dark:text-white">{startIndex}-{endIndex}</span> de <span class="font-semibold text-gray-900 dark:text-white">{filteredOrders.length}</span> resultados
 </span>
 <div class="flex items-center gap-4">
 <div class="flex items-center gap-2 text-sm">

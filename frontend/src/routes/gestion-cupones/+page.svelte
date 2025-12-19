@@ -4,7 +4,8 @@
 
   // Data from API
   let cupones = [];
-  let allCupones = []; // Store all cupones for client-side pagination
+  let allCupones = []; // Store all cupones unfiltered
+  let originalCupones = []; // Store original data from API
   let stats = {
     total_activos: 0,
     usos_hoy: 0,
@@ -39,8 +40,20 @@
   let searchQuery = '';
   let tipoFilter = '';
   let estadoFilter = '';
+  let tipoEnvioFilter = ''; // New filter
+  let restriccionesFilter = ''; // New filter
+  
+  // PDF libraries
+  let jsPDF: any;
+  let autoTable: any;
   
   onMount(async () => {
+    // Dynamically import jsPDF and autoTable
+    const jsPDFModule = await import('jspdf');
+    jsPDF = jsPDFModule.default;
+    const autoTableModule = await import('jspdf-autotable');
+    autoTable = autoTableModule.default;
+    
     await Promise.all([
       fetchCupones(),
       fetchStats()
@@ -49,19 +62,88 @@
   
   async function fetchCupones() {
     try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      if (tipoFilter) params.append('tipo', tipoFilter);
-      if (estadoFilter) params.append('estado', estadoFilter);
-      
-      const response = await fetch(`http://localhost:3000/api/cupones?${params}`);
+      const response = await fetch('http://localhost:3000/api/cupones');
       if (response.ok) {
-        allCupones = await response.json();
-        updatePagination();
+        originalCupones = await response.json();
+        applyFilters();
       }
     } catch (e) {
       console.error('Error fetching cupones:', e);
     }
+  }
+  
+  // Frontend filtering
+  function applyFilters() {
+    let filtered = [...originalCupones]; // Start with original data
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.codigo?.toLowerCase().includes(query) ||
+        c.nombre?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Tipo filter (case-insensitive)
+    if (tipoFilter) {
+      filtered = filtered.filter(c => 
+        c.tipo_cupon?.toLowerCase() === tipoFilter.toLowerCase()
+      );
+    }
+    
+    // Estado filter
+    if (estadoFilter) {
+      filtered = filtered.filter(c => {
+        const now = new Date();
+        const start = new Date(c.fecha_inicio);
+        const end = new Date(c.fecha_fin);
+        
+        if (estadoFilter === 'activo' && c.activo && now >= start && now <= end) return true;
+        if (estadoFilter === 'inactivo' && !c.activo) return true;
+        if (estadoFilter === 'vencido' && now > end) return true;
+        if (estadoFilter === 'proximo' && now < start) return true;
+        return false;
+      });
+    }
+    
+    // Tipo de envío filter
+    if (tipoEnvioFilter) {
+      if (tipoEnvioFilter === 'envio_gratis') {
+        filtered = filtered.filter(c => c.tipo_cupon?.toLowerCase() === 'envio_gratis');
+      } else if (tipoEnvioFilter === 'con_costo') {
+        filtered = filtered.filter(c => c.tipo_cupon?.toLowerCase() !== 'envio_gratis');
+      }
+    }
+    
+    // Restricciones filter
+    if (restriccionesFilter) {
+      if (restriccionesFilter === 'con_restricciones') {
+        filtered = filtered.filter(c => 
+          c.compra_minima > 0 || 
+          c.usos_maximos_totales || 
+          c.usos_maximos_por_usuario === 1
+        );
+      } else if (restriccionesFilter === 'sin_restricciones') {
+        filtered = filtered.filter(c => 
+          !c.compra_minima && 
+          !c.usos_maximos_totales && 
+          c.usos_maximos_por_usuario !== 1
+        );
+      }
+    }
+    
+    allCupones = filtered; // Update filtered results
+    updatePagination();
+  }
+  
+  function clearFilters() {
+    searchQuery = '';
+    tipoFilter = '';
+    estadoFilter = '';
+    tipoEnvioFilter = '';
+    restriccionesFilter = '';
+    fetchCupones();
   }
   
   function updatePagination() {
@@ -371,8 +453,139 @@
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       currentPage = 1; // Reset to first page on search
-      fetchCupones();
+      applyFilters();
     }, 300);
+  }
+  
+  function generatePDFReport() {
+    if (!jsPDF || !autoTable) {
+      alert('Cargando librería PDF...');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Header with gradient background
+    doc.setFillColor(59, 130, 246); // Primary blue color
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    // Company name
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KronosTech', 15, 20);
+    
+    // Report title
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Reporte de Cupones', 15, 30);
+    
+    // Date
+    doc.setFontSize(10);
+    const currentDate = new Date().toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    doc.text(`Generado: ${currentDate}`, pageWidth - 15, 30, { align: 'right' });
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    
+    // Summary statistics
+    const totalCupones = allCupones.length;
+    const activeCupones = allCupones.filter(c => c.activo).length;
+    const porcentajeCupones = allCupones.filter(c => c.tipo_cupon === 'porcentaje').length;
+    const envioGratisCupones = allCupones.filter(c => c.tipo_cupon === 'envio_gratis').length;
+    
+    let yPosition = 50;
+    
+    // Summary box
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 35, 3, 3, 'F');
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen General', 20, yPosition + 8);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Total de Cupones: ${totalCupones}`, 20, yPosition + 16);
+    doc.text(`Cupones Activos: ${activeCupones}`, 20, yPosition + 23);
+    doc.text(`Usos Hoy: ${stats.usos_hoy}`, 20, yPosition + 30);
+    
+    doc.text(`Tipo Porcentaje: ${porcentajeCupones}`, 80, yPosition + 16);
+    doc.text(`Envío Gratis: ${envioGratisCupones}`, 80, yPosition + 23);
+    doc.text(`Descuento Mes: $${stats.descuento_mes || 0}`, 80, yPosition + 30);
+    
+    yPosition += 45;
+    
+    // Table title
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detalle de Cupones', 15, yPosition);
+    
+    yPosition += 5;
+    
+    // Prepare table data
+    const tableData = allCupones.map(cupon => [
+      cupon.codigo || 'N/A',
+      cupon.nombre || 'N/A',
+      getTipoLabel(cupon.tipo_cupon),
+      formatValor(cupon.tipo_cupon, cupon.valor),
+      `${formatDate(cupon.fecha_inicio)} - ${formatDate(cupon.fecha_fin)}`,
+      cupon.activo ? 'Activo' : 'Inactivo'
+    ]);
+    
+    // Generate table
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Código', 'Nombre', 'Tipo', 'Valor', 'Vigencia', 'Estado']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [50, 50, 50]
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 40 },
+        5: { cellWidth: 20 }
+      },
+      margin: { left: 15, right: 15 },
+      didDrawPage: function(data) {
+        // Footer
+        const footerY = pageHeight - 15;
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Página ${doc.internal.getCurrentPageInfo().pageNumber}`,
+          pageWidth / 2,
+          footerY,
+          { align: 'center' }
+        );
+        doc.text('KronosTech © 2024', 15, footerY);
+      }
+    });
+    
+    // Save the PDF
+    doc.save(`Reporte_Cupones_${new Date().toISOString().split('T')[0]}.pdf`);
   }
 </script>
 
@@ -423,7 +636,7 @@
               <button class="p-2 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary">
                 <span class="material-symbols-outlined">filter_list</span>
               </button>
-              <button class="p-2 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary">
+              <button on:click={generatePDFReport} class="p-2 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary" title="Descargar reporte PDF">
                 <span class="material-symbols-outlined">download</span>
               </button>
               <button class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-primary/10 dark:bg-primary/20 text-primary gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-4 hover:bg-primary/20 dark:hover:bg-primary/30" on:click={openMassAssignModal}>
@@ -431,6 +644,39 @@
                 <span class="truncate">Asignación Masiva</span>
               </button>
             </div>
+          </div>
+          <!-- Filters Row -->
+          <div class="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <select bind:value={tipoFilter} on:change={applyFilters} class="flex h-10 shrink-0 items-center rounded-lg bg-background-light dark:bg-slate-800 px-3 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-sm">
+              <option value="">Todos los tipos</option>
+              <option value="porcentaje">Porcentaje</option>
+              <option value="monto_fijo">Monto Fijo</option>
+              <option value="envio_gratis">Envío Gratis</option>
+            </select>
+            <select bind:value={estadoFilter} on:change={applyFilters} class="flex h-10 shrink-0 items-center rounded-lg bg-background-light dark:bg-slate-800 px-3 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-sm">
+              <option value="">Todos los estados</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="vencido">Vencido</option>
+              <option value="proximo">Próximo</option>
+            </select>
+            <select bind:value={tipoEnvioFilter} on:change={applyFilters} class="flex h-10 shrink-0 items-center rounded-lg bg-background-light dark:bg-slate-800 px-3 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-sm">
+              <option value="">Tipo de envío</option>
+              <option value="envio_gratis">Envío Gratis</option>
+              <option value="con_costo">Con Costo</option>
+            </select>
+            <select bind:value={restriccionesFilter} on:change={applyFilters} class="flex h-10 shrink-0 items-center rounded-lg bg-background-light dark:bg-slate-800 px-3 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-sm">
+              <option value="">Restricciones</option>
+              <option value="con_restricciones">Con Restricciones</option>
+              <option value="sin_restricciones">Sin Restricciones</option>
+            </select>
+            <button 
+              on:click={clearFilters}
+              class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-slate-200 dark:bg-slate-700 px-4 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm"
+            >
+              <span class="material-symbols-outlined text-sm">filter_alt_off</span>
+              <span class="font-medium">Limpiar</span>
+            </button>
           </div>
         </div>
         <!-- Table -->
