@@ -16,6 +16,8 @@ pub mod producto_routes;
 pub mod descuento_routes;
 pub mod cupon_routes;
 pub mod reembolso_routes;
+pub mod log_routes;
+pub mod config_routes;
 
 // Re-exportaciones - Catálogo
 pub use catalogo_routes::*;
@@ -35,3 +37,5 @@ pub use producto_routes::*;
 pub use descuento_routes::*;
 pub use cupon_routes::*;
 pub use reembolso_routes::*;
+pub use log_routes::log_routes;
+pub use config_routes::config_routes;

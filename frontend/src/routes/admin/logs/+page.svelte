@@ -2,22 +2,13 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authUser, isAuthenticated } from '$lib/stores/auth';
-	import { FileText, Search, Filter, Download, Calendar, User, Activity, AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-svelte';
+	import { logsStore, logsOrdenados, logStats, modulosUnicos, type LogEntry } from '$lib/stores/logs';
+	import { logSystem } from '$lib/services/logs';
+	import { FileText, Search, Filter, Download, Calendar, User, Activity, AlertTriangle, Info, CheckCircle, XCircle, Trash2, RefreshCw, Shield } from 'lucide-svelte';
 
-	interface LogEntry {
-		id: number;
-		timestamp: string;
-		level: 'info' | 'warning' | 'error' | 'success';
-		action: string;
-		user: string;
-		ip: string;
-		details: string;
-		module: string;
-	}
-
-	let logs: LogEntry[] = [];
 	let logsFiltrados: LogEntry[] = [];
 	let loading = true;
+	let refreshing = false;
 
 	// Filtros
 	let filtroNivel = '';
@@ -26,7 +17,12 @@
 	let fechaInicio = '';
 	let fechaFin = '';
 
-	onMount(() => {
+	// Suscribirse a los logs
+	$: logs = $logsOrdenados;
+	$: stats = $logStats;
+	$: modulos = $modulosUnicos;
+
+	onMount(async () => {
 		if (!$isAuthenticated) {
 			goto('/login?redirect=/admin/logs');
 			return;
@@ -37,118 +33,22 @@
 			return;
 		}
 
-		cargarLogs();
+		// Cargar logs desde la API
+		await cargarLogs();
 	});
 
-	function cargarLogs() {
+	async function cargarLogs() {
 		loading = true;
-
-		// Datos simulados para demostración
-		logs = [
-			{
-				id: 1,
-				timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-				level: 'success',
-				action: 'Login exitoso',
-				user: 'admin@kronostech.com',
-				ip: '192.168.1.100',
-				details: 'Usuario autenticado correctamente',
-				module: 'Autenticación'
-			},
-			{
-				id: 2,
-				timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-				level: 'info',
-				action: 'Producto creado',
-				user: 'admin@kronostech.com',
-				ip: '192.168.1.100',
-				details: 'Producto "Laptop Dell XPS 15" creado en el catálogo',
-				module: 'Productos'
-			},
-			{
-				id: 3,
-				timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-				level: 'warning',
-				action: 'Stock bajo',
-				user: 'Sistema',
-				ip: '-',
-				details: 'Producto "Mouse Logitech" tiene stock bajo (5 unidades)',
-				module: 'Inventario'
-			},
-			{
-				id: 4,
-				timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-				level: 'success',
-				action: 'Venta procesada',
-				user: 'Sistema',
-				ip: '-',
-				details: 'Pedido #PED-20250105-0042 procesado correctamente',
-				module: 'Ventas'
-			},
-			{
-				id: 5,
-				timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-				level: 'error',
-				action: 'Error de pago',
-				user: 'cliente@example.com',
-				ip: '186.148.200.50',
-				details: 'Error al procesar pago con tarjeta ****1234',
-				module: 'Pagos'
-			},
-			{
-				id: 6,
-				timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-				level: 'info',
-				action: 'Usuario actualizado',
-				user: 'admin@kronostech.com',
-				ip: '192.168.1.100',
-				details: 'Datos de usuario ID 45 actualizados',
-				module: 'Usuarios'
-			},
-			{
-				id: 7,
-				timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-				level: 'success',
-				action: 'Cupón creado',
-				user: 'admin@kronostech.com',
-				ip: '192.168.1.100',
-				details: 'Cupón "VERANO2025" creado con 20% de descuento',
-				module: 'Cupones'
-			},
-			{
-				id: 8,
-				timestamp: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-				level: 'warning',
-				action: 'Intento de login fallido',
-				user: 'unknown@test.com',
-				ip: '203.45.67.89',
-				details: '3 intentos fallidos de autenticación',
-				module: 'Seguridad'
-			},
-			{
-				id: 9,
-				timestamp: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-				level: 'info',
-				action: 'Backup creado',
-				user: 'Sistema',
-				ip: '-',
-				details: 'Backup automático de base de datos completado',
-				module: 'Sistema'
-			},
-			{
-				id: 10,
-				timestamp: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
-				level: 'success',
-				action: 'Reembolso aprobado',
-				user: 'admin@kronostech.com',
-				ip: '192.168.1.100',
-				details: 'Reembolso #REF-001 aprobado por $250.00',
-				module: 'Reembolsos'
-			}
-		];
-
-		logsFiltrados = [...logs];
+		await logsStore.load({ limit: 500 });
 		loading = false;
+		aplicarFiltros();
+	}
+
+	async function refrescarLogs() {
+		refreshing = true;
+		await logsStore.refresh();
+		refreshing = false;
+		aplicarFiltros();
 	}
 
 	function aplicarFiltros() {
@@ -189,16 +89,15 @@
 		});
 	}
 
+	// Reactive: aplicar filtros cuando cambien
 	$: {
-		// Reactive: aplicar filtros cuando cambien
 		filtroNivel;
 		filtroModulo;
 		busqueda;
 		fechaInicio;
 		fechaFin;
-		if (logs.length > 0) {
-			aplicarFiltros();
-		}
+		logs;
+		aplicarFiltros();
 	}
 
 	function limpiarFiltros() {
@@ -209,30 +108,41 @@
 		fechaFin = '';
 	}
 
+	async function limpiarLogs() {
+		if (confirm('¿Estás seguro de eliminar todos los logs? Esta acción no se puede deshacer.')) {
+			const success = await logsStore.clear();
+			if (success) {
+				await logSystem('Logs eliminados', `Usuario ${$authUser?.email} eliminó todos los logs del sistema`, 'warning');
+				await refrescarLogs();
+			}
+		}
+	}
+
 	function exportarLogs() {
-		// Simular exportación de logs
 		const csv = [
 			['Timestamp', 'Nivel', 'Acción', 'Usuario', 'IP', 'Módulo', 'Detalles'].join(','),
 			...logsFiltrados.map((log) =>
 				[
 					log.timestamp,
 					log.level,
-					log.action,
+					`"${log.action}"`,
 					log.user,
 					log.ip,
 					log.module,
-					`"${log.details}"`
+					`"${log.details.replace(/"/g, '""')}"`
 				].join(',')
 			)
 		].join('\n');
 
-		const blob = new Blob([csv], { type: 'text/csv' });
+		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 		const url = window.URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
 		a.download = `logs_${new Date().toISOString().split('T')[0]}.csv`;
 		a.click();
 		window.URL.revokeObjectURL(url);
+
+		logSystem('Logs exportados', `Usuario ${$authUser?.email} exportó ${logsFiltrados.length} logs a CSV`, 'info');
 	}
 
 	function getLevelIcon(level: string) {
@@ -243,6 +153,8 @@
 				return XCircle;
 			case 'warning':
 				return AlertTriangle;
+			case 'security':
+				return Shield;
 			default:
 				return Info;
 		}
@@ -253,9 +165,21 @@
 			success: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
 			error: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
 			warning: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300',
-			info: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+			info: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
+			security: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
 		};
 		return classes[level as keyof typeof classes] || classes.info;
+	}
+
+	function getLevelLabel(level: string): string {
+		const labels = {
+			success: 'ÉXITO',
+			error: 'ERROR',
+			warning: 'ALERTA',
+			info: 'INFO',
+			security: 'SEGURIDAD'
+		};
+		return labels[level as keyof typeof labels] || level.toUpperCase();
 	}
 
 	function formatDate(dateString: string): string {
@@ -270,8 +194,20 @@
 		});
 	}
 
-	// Obtener módulos únicos para el filtro
-	$: modulos = Array.from(new Set(logs.map((log) => log.module)));
+	function getRelativeTime(dateString: string): string {
+		const date = new Date(dateString);
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffMins = Math.floor(diffMs / 60000);
+		const diffHours = Math.floor(diffMs / 3600000);
+		const diffDays = Math.floor(diffMs / 86400000);
+
+		if (diffMins < 1) return 'Hace un momento';
+		if (diffMins < 60) return `Hace ${diffMins} min`;
+		if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+		if (diffDays < 7) return `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+		return formatDate(dateString);
+	}
 </script>
 
 <svelte:head>
@@ -280,71 +216,114 @@
 
 <div class="space-y-6 p-4 md:p-6">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex items-center justify-between flex-wrap gap-4">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight text-text-light dark:text-text-dark">
 				Logs y Auditoría
 			</h1>
 			<p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
-				Registro de actividad y eventos del sistema
+				Registro de actividad y eventos del sistema (almacenado en base de datos)
 			</p>
 		</div>
-		<button
-			on:click={exportarLogs}
-			class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-		>
-			<Download size={18} />
-			Exportar Logs
-		</button>
+		<div class="flex gap-2">
+			<button
+				on:click={refrescarLogs}
+				disabled={refreshing}
+				class="flex items-center gap-2 px-4 py-2 rounded-lg border border-border-light dark:border-border-dark text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+				title="Refrescar logs"
+			>
+				<RefreshCw size={18} class={refreshing ? 'animate-spin' : ''} />
+				Refrescar
+			</button>
+			<button
+				on:click={limpiarLogs}
+				class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+				title="Eliminar todos los logs"
+			>
+				<Trash2 size={18} />
+				Limpiar
+			</button>
+			<button
+				on:click={exportarLogs}
+				class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+			>
+				<Download size={18} />
+				Exportar CSV
+			</button>
+		</div>
 	</div>
 
 	<!-- Estadísticas -->
-	<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-6">
+	<div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-sm text-slate-600 dark:text-slate-400">Total Eventos</p>
-					<p class="text-3xl font-bold text-text-light dark:text-text-dark mt-1">
-						{logs.length}
+					<p class="text-xs text-slate-600 dark:text-slate-400">Total</p>
+					<p class="text-2xl font-bold text-text-light dark:text-text-dark mt-1">
+						{stats.total}
 					</p>
 				</div>
-				<Activity class="text-blue-600 dark:text-blue-400" size={24} />
+				<Activity class="text-blue-600 dark:text-blue-400" size={20} />
 			</div>
 		</div>
 
-		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-6">
+		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-sm text-slate-600 dark:text-slate-400">Errores</p>
-					<p class="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
-						{logs.filter((l) => l.level === 'error').length}
+					<p class="text-xs text-slate-600 dark:text-slate-400">Info</p>
+					<p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+						{stats.info}
 					</p>
 				</div>
-				<XCircle class="text-red-600 dark:text-red-400" size={24} />
+				<Info class="text-blue-600 dark:text-blue-400" size={20} />
 			</div>
 		</div>
 
-		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-6">
+		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-sm text-slate-600 dark:text-slate-400">Advertencias</p>
-					<p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">
-						{logs.filter((l) => l.level === 'warning').length}
+					<p class="text-xs text-slate-600 dark:text-slate-400">Éxitos</p>
+					<p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
+						{stats.success}
 					</p>
 				</div>
-				<AlertTriangle class="text-yellow-600 dark:text-yellow-400" size={24} />
+				<CheckCircle class="text-green-600 dark:text-green-400" size={20} />
 			</div>
 		</div>
 
-		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-6">
+		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4">
 			<div class="flex items-center justify-between">
 				<div>
-					<p class="text-sm text-slate-600 dark:text-slate-400">Exitosos</p>
-					<p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
-						{logs.filter((l) => l.level === 'success').length}
+					<p class="text-xs text-slate-600 dark:text-slate-400">Alertas</p>
+					<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">
+						{stats.warning}
 					</p>
 				</div>
-				<CheckCircle class="text-green-600 dark:text-green-400" size={24} />
+				<AlertTriangle class="text-yellow-600 dark:text-yellow-400" size={20} />
+			</div>
+		</div>
+
+		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs text-slate-600 dark:text-slate-400">Errores</p>
+					<p class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">
+						{stats.error}
+					</p>
+				</div>
+				<XCircle class="text-red-600 dark:text-red-400" size={20} />
+			</div>
+		</div>
+
+		<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4">
+			<div class="flex items-center justify-between">
+				<div>
+					<p class="text-xs text-slate-600 dark:text-slate-400">Seguridad</p>
+					<p class="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+						{stats.security}
+					</p>
+				</div>
+				<Shield class="text-purple-600 dark:text-purple-400" size={20} />
 			</div>
 		</div>
 	</div>
@@ -375,9 +354,10 @@
 				<select bind:value={filtroNivel} class="form-input w-full">
 					<option value="">Todos</option>
 					<option value="info">Info</option>
-					<option value="success">Success</option>
-					<option value="warning">Warning</option>
+					<option value="success">Éxito</option>
+					<option value="warning">Alerta</option>
 					<option value="error">Error</option>
+					<option value="security">Seguridad</option>
 				</select>
 			</div>
 
@@ -441,12 +421,12 @@
 				<p class="text-sm text-slate-600 dark:text-slate-400">
 					{busqueda || filtroNivel || filtroModulo || fechaInicio || fechaFin
 						? 'Intenta ajustar los filtros de búsqueda'
-						: 'No hay eventos registrados'}
+						: 'Los eventos del sistema se registrarán aquí automáticamente'}
 				</p>
 			</div>
 		{:else}
 			<div class="space-y-3">
-				{#each logsFiltrados as log}
+				{#each logsFiltrados as log (log.id)}
 					<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4 hover:shadow-md transition-shadow">
 						<div class="flex items-start gap-4">
 							<!-- Icono -->
@@ -466,21 +446,21 @@
 										</p>
 									</div>
 									<span class="px-2 py-1 rounded text-xs font-medium {getLevelClass(log.level)} whitespace-nowrap">
-										{log.level.toUpperCase()}
+										{getLevelLabel(log.level)}
 									</span>
 								</div>
 
 								<!-- Metadata -->
 								<div class="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
-									<div class="flex items-center gap-1">
+									<div class="flex items-center gap-1" title={formatDate(log.timestamp)}>
 										<Calendar size={14} />
-										{formatDate(log.timestamp)}
+										{getRelativeTime(log.timestamp)}
 									</div>
 									<div class="flex items-center gap-1">
 										<User size={14} />
 										{log.user}
 									</div>
-									{#if log.ip !== '-'}
+									{#if log.ip !== '-' && log.ip !== 'N/A' && log.ip !== 'Cliente'}
 										<div class="flex items-center gap-1">
 											IP: {log.ip}
 										</div>
@@ -493,6 +473,13 @@
 						</div>
 					</div>
 				{/each}
+			</div>
+
+			<!-- Info de almacenamiento -->
+			<div class="text-center py-4">
+				<p class="text-xs text-slate-500 dark:text-slate-400">
+					Los logs se almacenan en la base de datos. Se muestran los últimos 500 eventos.
+				</p>
 			</div>
 		{/if}
 	{/if}

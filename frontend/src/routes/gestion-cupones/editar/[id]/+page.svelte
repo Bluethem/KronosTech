@@ -25,19 +25,47 @@
   
   // UI state
   let productos: Array<{id_producto_detalle: number, nombre: string}> = [];
+  let categorias: Array<{id_categoria: number, nombre: string}> = [];
+  let marcas: Array<{id_marca: number, nombre: string}> = [];
   let loading = false;
   let loadingData = true;
   let errorMessage = '';
   let successMessage = '';
   
   // Assigned Users State
-  let assignedUsuarios = [];
+  let assignedUsuarios: any[] = [];
   let loadingAssignedUsers = false;
-  let unassigningUserId = null;
+  let unassigningUserId: number | null = null;
+  
+  // Estado original para revertir
+  interface DatosOriginales {
+    codigo: string;
+    nombre: string;
+    descripcion: string;
+    tipoCupon: string;
+    valor: string;
+    aplicaCupon: string;
+    idReferencia: number | null;
+    compraMinima: string;
+    usosMaximosTotales: string;
+    usosMaximosPorUsuario: string;
+    soloNuevosUsuarios: boolean;
+    soloPrimeraCompra: boolean;
+    fechaInicio: string;
+    fechaFin: string;
+    activo: boolean;
+    referenciaNombre?: string;
+  }
+  let datosOriginales: DatosOriginales | null = null;
+  let showConfirmModal = false;
+  let cambiosPendientes: {campo: string, antes: string, despues: string}[] = [];
+  let hayCambios = false;
   
   onMount(async () => {
     await Promise.all([
       fetchProductos(),
+      fetchCategorias(),
+      fetchMarcas(),
       loadCuponData(),
       fetchAssignedUsers()
     ]);
@@ -51,6 +79,30 @@
       }
     } catch (e) {
       console.error('Error fetching productos:', e);
+    }
+  }
+  
+  async function fetchCategorias() {
+    try {
+      const response = await fetch('http://localhost:3000/api/categorias');
+      if (response.ok) {
+        const data = await response.json();
+        categorias = data.data || data || [];
+      }
+    } catch (e) {
+      console.error('Error fetching categorias:', e);
+    }
+  }
+  
+  async function fetchMarcas() {
+    try {
+      const response = await fetch('http://localhost:3000/api/marcas');
+      if (response.ok) {
+        const data = await response.json();
+        marcas = data.data || data || [];
+      }
+    } catch (e) {
+      console.error('Error fetching marcas:', e);
     }
   }
   
@@ -73,14 +125,14 @@
         idReferencia = cupon.id_referencia;
         
         // Map database values to frontend values
-        const tipoCuponMap = {
+        const tipoCuponMap: Record<string, string> = {
           'porcentaje': 'Porcentaje',
           'monto_fijo': 'Monto Fijo',
           'envio_gratis': 'Envío Gratis'
         };
         tipoCupon = tipoCuponMap[cupon.tipo_cupon] || 'Porcentaje';
         
-        const aplicaCuponMap = {
+        const aplicaCuponMap: Record<string, string> = {
           'todo': 'Todo',
           'producto': 'Producto',
           'categoria': 'Categoría',
@@ -98,15 +150,190 @@
           const fin = new Date(cupon.fecha_fin);
           fechaFin = fin.toISOString().slice(0, 16);
         }
+        
+        // Guardar datos originales para poder revertir
+        datosOriginales = {
+          codigo,
+          nombre,
+          descripcion,
+          tipoCupon,
+          valor,
+          aplicaCupon,
+          idReferencia,
+          compraMinima,
+          usosMaximosTotales,
+          usosMaximosPorUsuario,
+          soloNuevosUsuarios,
+          soloPrimeraCompra,
+          fechaInicio,
+          fechaFin,
+          activo,
+          referenciaNombre: cupon.referencia_nombre
+        };
       } else {
         errorMessage = 'No se pudo cargar el cupón';
       }
-    } catch (e) {
+    } catch (e: any) {
       errorMessage = 'Error al cargar el cupón: ' + e.message;
     } finally {
       loadingData = false;
     }
   }
+  
+  // Detectar cambios reactivamente
+  $: if (datosOriginales) {
+    hayCambios = 
+      codigo !== datosOriginales.codigo ||
+      nombre !== datosOriginales.nombre ||
+      descripcion !== datosOriginales.descripcion ||
+      tipoCupon !== datosOriginales.tipoCupon ||
+      valor !== datosOriginales.valor ||
+      aplicaCupon !== datosOriginales.aplicaCupon ||
+      idReferencia !== datosOriginales.idReferencia ||
+      compraMinima !== datosOriginales.compraMinima ||
+      usosMaximosTotales !== datosOriginales.usosMaximosTotales ||
+      usosMaximosPorUsuario !== datosOriginales.usosMaximosPorUsuario ||
+      soloNuevosUsuarios !== datosOriginales.soloNuevosUsuarios ||
+      soloPrimeraCompra !== datosOriginales.soloPrimeraCompra ||
+      fechaInicio !== datosOriginales.fechaInicio ||
+      fechaFin !== datosOriginales.fechaFin ||
+      activo !== datosOriginales.activo;
+  }
+  
+  function revertirCambios() {
+    if (!datosOriginales) return;
+    
+    codigo = datosOriginales.codigo;
+    nombre = datosOriginales.nombre;
+    descripcion = datosOriginales.descripcion;
+    tipoCupon = datosOriginales.tipoCupon;
+    valor = datosOriginales.valor;
+    aplicaCupon = datosOriginales.aplicaCupon;
+    idReferencia = datosOriginales.idReferencia;
+    compraMinima = datosOriginales.compraMinima;
+    usosMaximosTotales = datosOriginales.usosMaximosTotales;
+    usosMaximosPorUsuario = datosOriginales.usosMaximosPorUsuario;
+    soloNuevosUsuarios = datosOriginales.soloNuevosUsuarios;
+    soloPrimeraCompra = datosOriginales.soloPrimeraCompra;
+    fechaInicio = datosOriginales.fechaInicio;
+    fechaFin = datosOriginales.fechaFin;
+    activo = datosOriginales.activo;
+    
+    successMessage = 'Cambios revertidos correctamente';
+    setTimeout(() => successMessage = '', 3000);
+  }
+  
+  function calcularCambios(): {campo: string, antes: string, despues: string}[] {
+    if (!datosOriginales) return [];
+    
+    const cambios: {campo: string, antes: string, despues: string}[] = [];
+    
+    if (codigo !== datosOriginales.codigo) {
+      cambios.push({ campo: 'Código', antes: datosOriginales.codigo, despues: codigo });
+    }
+    if (nombre !== datosOriginales.nombre) {
+      cambios.push({ campo: 'Nombre', antes: datosOriginales.nombre, despues: nombre });
+    }
+    if (descripcion !== datosOriginales.descripcion) {
+      cambios.push({ campo: 'Descripción', antes: datosOriginales.descripcion || '(vacío)', despues: descripcion || '(vacío)' });
+    }
+    if (tipoCupon !== datosOriginales.tipoCupon) {
+      cambios.push({ campo: 'Tipo', antes: datosOriginales.tipoCupon, despues: tipoCupon });
+    }
+    if (valor !== datosOriginales.valor) {
+      cambios.push({ campo: 'Valor', antes: datosOriginales.valor, despues: valor });
+    }
+    if (aplicaCupon !== datosOriginales.aplicaCupon) {
+      cambios.push({ campo: 'Aplica a', antes: datosOriginales.aplicaCupon, despues: aplicaCupon });
+    }
+    if (idReferencia !== datosOriginales.idReferencia) {
+      const nombreAntes = obtenerNombreReferencia(datosOriginales.aplicaCupon, datosOriginales.idReferencia) || datosOriginales.referenciaNombre || '(ninguno)';
+      const nombreDespues = obtenerNombreReferencia(aplicaCupon, idReferencia) || '(ninguno)';
+      cambios.push({ campo: 'Referencia específica', antes: nombreAntes, despues: nombreDespues });
+    }
+    if (compraMinima !== datosOriginales.compraMinima) {
+      cambios.push({ campo: 'Compra mínima', antes: datosOriginales.compraMinima || '(sin límite)', despues: compraMinima || '(sin límite)' });
+    }
+    if (usosMaximosTotales !== datosOriginales.usosMaximosTotales) {
+      cambios.push({ campo: 'Usos máximos totales', antes: datosOriginales.usosMaximosTotales || 'Ilimitado', despues: usosMaximosTotales || 'Ilimitado' });
+    }
+    if (usosMaximosPorUsuario !== datosOriginales.usosMaximosPorUsuario) {
+      cambios.push({ campo: 'Usos máximos por usuario', antes: datosOriginales.usosMaximosPorUsuario || 'Ilimitado', despues: usosMaximosPorUsuario || 'Ilimitado' });
+    }
+    if (soloNuevosUsuarios !== datosOriginales.soloNuevosUsuarios) {
+      cambios.push({ campo: 'Solo nuevos usuarios', antes: datosOriginales.soloNuevosUsuarios ? 'Sí' : 'No', despues: soloNuevosUsuarios ? 'Sí' : 'No' });
+    }
+    if (soloPrimeraCompra !== datosOriginales.soloPrimeraCompra) {
+      cambios.push({ campo: 'Solo primera compra', antes: datosOriginales.soloPrimeraCompra ? 'Sí' : 'No', despues: soloPrimeraCompra ? 'Sí' : 'No' });
+    }
+    if (fechaInicio !== datosOriginales.fechaInicio) {
+      cambios.push({ campo: 'Fecha inicio', antes: formatDateTimeDisplay(datosOriginales.fechaInicio), despues: formatDateTimeDisplay(fechaInicio) });
+    }
+    if (fechaFin !== datosOriginales.fechaFin) {
+      cambios.push({ campo: 'Fecha fin', antes: formatDateTimeDisplay(datosOriginales.fechaFin), despues: formatDateTimeDisplay(fechaFin) });
+    }
+    if (activo !== datosOriginales.activo) {
+      cambios.push({ campo: 'Estado', antes: datosOriginales.activo ? 'Activo' : 'Inactivo', despues: activo ? 'Activo' : 'Inactivo' });
+    }
+    
+    return cambios;
+  }
+  
+  function obtenerNombreReferencia(tipo: string, id: number | null): string | null {
+    if (!id) return null;
+    
+    if (tipo === 'Producto') {
+      const producto = productos.find(p => p.id_producto_detalle === id);
+      return producto?.nombre || null;
+    }
+    if (tipo === 'Categoría') {
+      const categoria = categorias.find(c => c.id_categoria === id);
+      return categoria?.nombre || null;
+    }
+    if (tipo === 'Marca') {
+      const marca = marcas.find(m => m.id_marca === id);
+      return marca?.nombre || null;
+    }
+    return null;
+  }
+  
+  function formatDateTimeDisplay(dateString: string): string {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-PE', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+  
+  function mostrarConfirmacion() {
+    cambiosPendientes = calcularCambios();
+    if (cambiosPendientes.length === 0) {
+      errorMessage = 'No hay cambios para guardar';
+      return;
+    }
+    showConfirmModal = true;
+  }
+  
+  function cerrarModal() {
+    showConfirmModal = false;
+    cambiosPendientes = [];
+  }
+  
+  // Obtener opciones de referencia según el tipo seleccionado
+  $: showReferenciaSelect = aplicaCupon === 'Producto' || aplicaCupon === 'Categoría' || aplicaCupon === 'Marca';
+  
+  $: opcionesReferencia = (() => {
+    if (aplicaCupon === 'Producto') return productos.map(p => ({ id: p.id_producto_detalle, nombre: p.nombre }));
+    if (aplicaCupon === 'Categoría') return categorias.map(c => ({ id: c.id_categoria, nombre: c.nombre }));
+    if (aplicaCupon === 'Marca') return marcas.map(m => ({ id: m.id_marca, nombre: m.nombre }));
+    return [];
+  })();
+  
+  $: labelReferencia = aplicaCupon === 'Producto' ? 'Producto Específico' : aplicaCupon === 'Categoría' ? 'Categoría Específica' : 'Marca Específica';
   
   function validateForm(): string | null {
     if (!codigo.trim()) {
@@ -125,8 +352,8 @@
       return 'El porcentaje no puede ser mayor a 100';
     }
     
-    if (aplicaCupon === 'Producto' && !idReferencia) {
-      return 'Debe seleccionar un producto específico';
+    if ((aplicaCupon === 'Producto' || aplicaCupon === 'Categoría' || aplicaCupon === 'Marca') && !idReferencia) {
+      return `Debe seleccionar ${aplicaCupon === 'Producto' ? 'un producto' : aplicaCupon === 'Categoría' ? 'una categoría' : 'una marca'} específica`;
     }
     
     if (!fechaInicio) {
@@ -144,7 +371,7 @@
     return null;
   }
   
-  async function handleSubmit() {
+  function iniciarGuardado() {
     errorMessage = '';
     successMessage = '';
     
@@ -154,6 +381,12 @@
       return;
     }
     
+    // Mostrar modal de confirmación con cambios
+    mostrarConfirmacion();
+  }
+  
+  async function handleSubmit() {
+    cerrarModal();
     loading = true;
     
     try {
@@ -163,7 +396,7 @@
       };
       
       const mapTipoCupon = (tipo: string) => {
-        const map = {
+        const map: Record<string, string> = {
           'Porcentaje': 'porcentaje',
           'Monto Fijo': 'monto_fijo',
           'Envío Gratis': 'envio_gratis'
@@ -172,7 +405,7 @@
       };
       
       const mapAplicaCupon = (aplica: string) => {
-        const map = {
+        const map: Record<string, string> = {
           'Todo': 'todo',
           'Producto': 'producto',
           'Categoría': 'categoria',
@@ -182,6 +415,12 @@
         return map[aplica] || aplica.toLowerCase();
       };
       
+      // Determinar id_referencia según el tipo de aplicación
+      let refId: number | null = null;
+      if (aplicaCupon === 'Producto' || aplicaCupon === 'Categoría' || aplicaCupon === 'Marca') {
+        refId = idReferencia;
+      }
+      
       const payload = {
         codigo: codigo.trim(),
         nombre: nombre.trim(),
@@ -189,7 +428,7 @@
         tipo_cupon: mapTipoCupon(tipoCupon),
         valor: parseFloat(valor),
         aplica_cupon: mapAplicaCupon(aplicaCupon),
-        id_referencia: aplicaCupon === 'Producto' ? idReferencia : null,
+        id_referencia: refId,
         compra_minima: compraMinima ? parseFloat(compraMinima) : null,
         usos_maximos_totales: usosMaximosTotales ? parseInt(usosMaximosTotales) : null,
         usos_maximos_por_usuario: usosMaximosPorUsuario ? parseInt(usosMaximosPorUsuario) : null,
@@ -210,6 +449,24 @@
       
       if (response.ok) {
         successMessage = 'Cupón actualizado exitosamente';
+        // Actualizar datos originales con los nuevos valores
+        datosOriginales = {
+          codigo,
+          nombre,
+          descripcion,
+          tipoCupon,
+          valor,
+          aplicaCupon,
+          idReferencia,
+          compraMinima,
+          usosMaximosTotales,
+          usosMaximosPorUsuario,
+          soloNuevosUsuarios,
+          soloPrimeraCompra,
+          fechaInicio,
+          fechaFin,
+          activo
+        };
         setTimeout(() => {
           goto('/gestion-cupones');
         }, 1500);
@@ -217,7 +474,7 @@
         const error = await response.text();
         errorMessage = 'Error al actualizar el cupón: ' + error;
       }
-    } catch (e) {
+    } catch (e: any) {
       errorMessage = 'Error de conexión: ' + e.message;
     } finally {
       loading = false;
@@ -410,19 +667,19 @@
                   </select>
                 </div>
 
-                {#if aplicaCupon === 'Producto'}
+                {#if showReferenciaSelect}
                   <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Producto Específico *
+                      {labelReferencia} *
                     </label>
                     <select
                       bind:value={idReferencia}
                       class="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary"
                       required
                     >
-                      <option value={null}>Seleccionar producto...</option>
-                      {#each productos as producto}
-                        <option value={producto.id_producto_detalle}>{producto.nombre}</option>
+                      <option value={null}>Seleccionar {aplicaCupon.toLowerCase()}...</option>
+                      {#each opcionesReferencia as opcion (opcion.id)}
+                        <option value={opcion.id}>{opcion.nombre}</option>
                       {/each}
                     </select>
                   </div>
@@ -590,25 +847,43 @@
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                on:click={handleCancel}
-                class="px-6 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                disabled={loading}
-              >
-                {#if loading}
-                  <span class="material-symbols-outlined animate-spin">progress_activity</span>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-2">
+                {#if hayCambios}
+                  <button
+                    type="button"
+                    on:click={revertirCambios}
+                    class="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                  >
+                    <span class="material-symbols-outlined text-xl">undo</span>
+                    Revertir Cambios
+                  </button>
+                  <span class="text-sm text-amber-600 dark:text-amber-400">
+                    ({calcularCambios().length} cambio{calcularCambios().length !== 1 ? 's' : ''} pendiente{calcularCambios().length !== 1 ? 's' : ''})
+                  </span>
                 {/if}
-                {loading ? 'Actualizando...' : 'Actualizar Cupón'}
-              </button>
+              </div>
+              <div class="flex items-center gap-3">
+                <button
+                  type="button"
+                  on:click={handleCancel}
+                  class="px-6 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium"
+                  disabled={loading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  on:click={iniciarGuardado}
+                  class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={loading || !hayCambios}
+                >
+                  {#if loading}
+                    <span class="material-symbols-outlined animate-spin">progress_activity</span>
+                  {/if}
+                  {loading ? 'Actualizando...' : 'Actualizar Cupón'}
+                </button>
+              </div>
             </div>
           </form>
         {/if}
@@ -616,3 +891,68 @@
     </main>
   </div>
 </div>
+
+<!-- Modal de Confirmación de Cambios -->
+{#if showConfirmModal}
+  <div class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" on:click={cerrarModal} on:keydown={(e) => e.key === 'Escape' && cerrarModal()} role="dialog" tabindex="-1">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden" on:click|stopPropagation role="document">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30">
+            <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">warning</span>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Confirmar Cambios</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Revisa los cambios antes de guardar</p>
+          </div>
+        </div>
+        <button on:click={cerrarModal} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div class="p-4 overflow-y-auto max-h-[50vh]">
+        <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          Se realizarán los siguientes cambios al cupón "<strong>{datosOriginales?.codigo}</strong>":
+        </p>
+        
+        <div class="space-y-3">
+          {#each cambiosPendientes as cambio (cambio.campo)}
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{cambio.campo}</p>
+              <div class="flex items-center gap-2 text-sm flex-wrap">
+                <span class="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 line-through">
+                  {cambio.antes}
+                </span>
+                <span class="material-symbols-outlined text-gray-400">arrow_forward</span>
+                <span class="px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                  {cambio.despues}
+                </span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div class="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <button 
+          on:click={cerrarModal}
+          class="flex items-center justify-center h-10 px-4 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button 
+          on:click={handleSubmit}
+          disabled={loading}
+          class="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          <span class="material-symbols-outlined text-lg">check</span>
+          {loading ? 'Guardando...' : 'Confirmar y Guardar'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

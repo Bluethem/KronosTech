@@ -1,4 +1,5 @@
 import axios, { type AxiosError } from 'axios';
+import { logAuth, logSecurity } from '$lib/services/logs';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -107,10 +108,24 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
     const { data } = await apiAuth.post<LoginResponse>('/auth/login', payload);
     if (data.success && data.data.token) {
       setToken(data.data.token);
+      // Registrar login exitoso
+      logAuth(
+        'Login exitoso',
+        `Usuario ${data.data.usuario.email} (${data.data.usuario.rol}) inició sesión`,
+        data.data.usuario.email,
+        true
+      );
     }
     return data;
   } catch (error) {
     const axiosError = error as AxiosError<ErrorResponse>;
+    // Registrar intento fallido
+    logSecurity(
+      'Intento de login fallido',
+      `Intento fallido de login para ${payload.email}: ${axiosError.response?.data?.message || 'Credenciales inválidas'}`,
+      payload.email,
+      'warning'
+    );
     throw new Error(axiosError.response?.data?.message || 'Error al iniciar sesión');
   }
 }
@@ -118,6 +133,13 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 export async function register(payload: RegisterPayload): Promise<RegisterResponse> {
   try {
     const { data } = await apiAuth.post<RegisterResponse>('/auth/register', payload);
+    // Registrar nuevo usuario
+    logAuth(
+      'Nuevo registro',
+      `Nuevo usuario registrado: ${payload.email} (${payload.nombre} ${payload.apellido})`,
+      payload.email,
+      true
+    );
     return data;
   } catch (error) {
     const axiosError = error as AxiosError<ErrorResponse>;
@@ -136,12 +158,16 @@ export async function getCurrentUser(): Promise<Usuario> {
   }
 }
 
-export async function logout(): Promise<void> {
+export async function logout(userEmail?: string): Promise<void> {
   try {
     await apiAuth.post('/auth/logout');
   } catch (error) {
     // Ignorar errores de logout
   } finally {
+    // Registrar logout
+    if (userEmail) {
+      logAuth('Logout', `Usuario ${userEmail} cerró sesión`, userEmail, true);
+    }
     removeToken();
   }
 }

@@ -886,3 +886,55 @@ CREATE TABLE lista_deseos (
 
 CREATE INDEX idx_lista_deseos_usuario ON lista_deseos(id_usuario);
 CREATE INDEX idx_lista_deseos_producto ON lista_deseos(id_producto_detalle);
+
+-- ============================================================================
+-- TABLAS: LOGS Y AUDITORÍA
+-- ============================================================================
+
+CREATE TYPE nivel_log AS ENUM ('info', 'warning', 'error', 'success', 'security');
+
+CREATE TABLE log_auditoria (
+    id_log SERIAL PRIMARY KEY,
+    nivel nivel_log NOT NULL DEFAULT 'info',
+    accion VARCHAR(200) NOT NULL,
+    detalles TEXT,
+    modulo VARCHAR(100) NOT NULL,  -- Autenticación, Configuración, Sistema, Usuarios, etc.
+    id_usuario INTEGER,  -- NULL para acciones del sistema
+    email_usuario VARCHAR(255),  -- Snapshot del email para auditoría
+    ip_cliente VARCHAR(45),
+    user_agent TEXT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_log_nivel ON log_auditoria(nivel);
+CREATE INDEX idx_log_modulo ON log_auditoria(modulo);
+CREATE INDEX idx_log_usuario ON log_auditoria(id_usuario);
+CREATE INDEX idx_log_fecha ON log_auditoria(fecha_creacion DESC);
+CREATE INDEX idx_log_accion ON log_auditoria(accion);
+
+COMMENT ON TABLE log_auditoria IS 'Tabla de logs para auditoría del sistema';
+COMMENT ON COLUMN log_auditoria.email_usuario IS 'Snapshot del email - se mantiene aunque el usuario sea eliminado';
+
+-- ============================================================================
+-- TABLAS: CONFIGURACIÓN DEL SISTEMA
+-- ============================================================================
+
+CREATE TABLE configuracion_sistema (
+    id_config SERIAL PRIMARY KEY,
+    clave VARCHAR(100) NOT NULL UNIQUE,
+    valor TEXT NOT NULL,
+    tipo VARCHAR(20) NOT NULL DEFAULT 'string', -- string, number, boolean, json
+    descripcion TEXT,
+    categoria VARCHAR(50) NOT NULL DEFAULT 'general',
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actualizado_por INTEGER,
+    
+    FOREIGN KEY (actualizado_por) REFERENCES usuario(id_usuario) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_config_clave ON configuracion_sistema(clave);
+CREATE INDEX idx_config_categoria ON configuracion_sistema(categoria);
+
+COMMENT ON TABLE configuracion_sistema IS 'Configuración global del sistema - editable desde el panel de admin';

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { authUser, isAuthenticated } from '$lib/stores/auth';
+	import { apiAuth } from '$lib/services/auth';
 	import {
 		LayoutDashboard,
 		Package,
@@ -30,7 +31,14 @@
 		}
 	});
 
-	// Datos de ejemplo - estos deberían venir del backend
+	// Estadísticas del dashboard
+	interface DashboardStats {
+		ventas_hoy: number;
+		pedidos_pendientes: number;
+		productos_bajo_stock: number;
+		usuarios_activos: number;
+	}
+
 	let stats = {
 		ventasHoy: 0,
 		pedidosPendientes: 0,
@@ -39,27 +47,34 @@
 	};
 
 	let loading = true;
+	let error = '';
 
 	onMount(async () => {
-		// TODO: Cargar estadísticas reales del backend
 		await loadDashboardData();
 	});
 
 	async function loadDashboardData() {
 		loading = true;
+		error = '';
 		try {
-			// Simular carga de datos
-			await new Promise(resolve => setTimeout(resolve, 500));
-
-			// Datos de ejemplo
+			const { data } = await apiAuth.get<DashboardStats>('/admin/dashboard/stats');
+			
 			stats = {
-				ventasHoy: 25,
-				pedidosPendientes: 8,
-				productosBajoStock: 12,
-				usuariosActivos: 156
+				ventasHoy: data.ventas_hoy,
+				pedidosPendientes: data.pedidos_pendientes,
+				productosBajoStock: data.productos_bajo_stock,
+				usuariosActivos: data.usuarios_activos
 			};
-		} catch (error) {
-			console.error('Error al cargar dashboard:', error);
+		} catch (err: any) {
+			console.error('Error al cargar dashboard:', err);
+			error = err.response?.data?.message || 'Error al cargar estadísticas';
+			// En caso de error, mostrar valores por defecto
+			stats = {
+				ventasHoy: 0,
+				pedidosPendientes: 0,
+				productosBajoStock: 0,
+				usuariosActivos: 0
+			};
 		} finally {
 			loading = false;
 		}

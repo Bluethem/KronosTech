@@ -31,8 +31,6 @@
 		}
 	});
 
-	$: currentPath = $page.url.pathname;
-
 	import { RotateCcw } from 'lucide-svelte';
 
 	const menuItems = [
@@ -46,11 +44,14 @@
 		{ path: '/cuenta/seguridad', label: 'Seguridad', icon: Shield }
 	];
 
-	function isActive(path: string): boolean {
+	// Función reactiva para verificar ruta activa
+	$: currentPath = $page.url.pathname;
+	
+	function checkActive(path: string, current: string): boolean {
 		if (path === '/cuenta') {
-			return currentPath === path;
+			return current === path;
 		}
-		return currentPath.startsWith(path);
+		return current.startsWith(path);
 	}
 
 	function toggleMobileMenu() {
@@ -65,15 +66,15 @@
 </script>
 
 <div class="min-h-[calc(100vh-4rem)] bg-surface-light dark:bg-surface-dark">
-	<div class="max-w-7xl mx-auto px-4 lg:px-6 py-8">
+	<div class="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-6">
 
 		<!-- Header Mobile -->
-		<div class="lg:hidden mb-6 flex items-center justify-between">
+		<div class="lg:hidden mb-4 flex items-center justify-between">
 			<div>
-				<h1 class="text-2xl font-bold text-text-light dark:text-text-dark">
+				<h1 class="text-xl font-bold text-text-light dark:text-text-dark">
 					Mi Cuenta
 				</h1>
-				<p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+				<p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
 					{$authUser?.nombre} {$authUser?.apellido}
 				</p>
 			</div>
@@ -84,29 +85,29 @@
 				aria-label="Abrir menú"
 			>
 				{#if mobileMenuOpen}
-					<X size={24} />
+					<X size={22} />
 				{:else}
-					<Menu size={24} />
+					<Menu size={22} />
 				{/if}
 			</button>
 		</div>
 
-		<!-- Grid Principal -->
-		<div class="grid grid-cols-1 lg:grid-cols-[280px,1fr] gap-6">
+		<!-- Layout Principal - Flex para sidebar fijo -->
+		<div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
-			<!-- Menú Lateral -->
+			<!-- Menú Lateral - Sticky en desktop -->
 			<aside
-				class="lg:block {mobileMenuOpen ? 'block' : 'hidden'} space-y-4"
+				class="lg:w-64 lg:flex-shrink-0 lg:sticky lg:top-20 lg:self-start {mobileMenuOpen ? 'block' : 'hidden'} lg:block space-y-3"
 				aria-label="Menú de cuenta"
 			>
-				<!-- Info Usuario -->
-				<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-5 shadow-sm">
+				<!-- Info Usuario - Más compacto -->
+				<div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 p-4 shadow-sm">
 					<div class="flex items-center gap-3">
-						<div class="w-12 h-12 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+						<div class="w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
 							{$authUser?.nombre?.charAt(0)}{$authUser?.apellido?.charAt(0)}
 						</div>
 						<div class="flex-1 min-w-0">
-							<p class="font-semibold text-text-light dark:text-text-dark truncate">
+							<p class="font-semibold text-sm text-text-light dark:text-text-dark truncate">
 								{$authUser?.nombre} {$authUser?.apellido}
 							</p>
 							<p class="text-xs text-slate-600 dark:text-slate-400 truncate">
@@ -116,22 +117,22 @@
 					</div>
 				</div>
 
-				<!-- Navegación -->
+				<!-- Navegación - Items más compactos -->
 				<nav class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 shadow-sm overflow-hidden">
 					<ul class="divide-y divide-border-light dark:divide-border-dark">
 						{#each menuItems as item}
 							<li>
 								<a
 									href={item.path}
-									class="flex items-center gap-3 px-4 py-3 text-sm transition-colors {isActive(item.path)
+									class="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors {checkActive(item.path, currentPath)
 										? 'bg-primary/10 dark:bg-primary/20 text-primary font-semibold border-l-4 border-primary'
 										: 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 border-l-4 border-transparent'}"
 									on:click={() => mobileMenuOpen = false}
 								>
-									<svelte:component this={item.icon} size={20} />
+									<svelte:component this={item.icon} size={18} />
 									<span class="flex-1">{item.label}</span>
-									{#if isActive(item.path)}
-										<ChevronRight size={16} />
+									{#if checkActive(item.path, currentPath)}
+										<ChevronRight size={14} />
 									{/if}
 								</a>
 							</li>
@@ -142,16 +143,16 @@
 				<!-- Cerrar Sesión -->
 				<button
 					type="button"
-					class="w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 shadow-sm"
+					class="w-full rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-slate-800/50 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 shadow-sm"
 					on:click={handleLogout}
 				>
-					<LogOut size={20} />
+					<LogOut size={18} />
 					<span class="font-medium">Cerrar Sesión</span>
 				</button>
 			</aside>
 
-			<!-- Contenido Principal -->
-			<main class="min-w-0 space-y-6 p-2 sm:p-4 lg:p-6">
+			<!-- Contenido Principal - Crece para ocupar el espacio restante -->
+			<main class="flex-1 min-w-0">
 				<slot />
 			</main>
 		</div>

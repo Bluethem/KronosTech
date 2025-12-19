@@ -21,11 +21,15 @@ export const load: PageLoad = async ({ fetch, url }) => {
     const estado = url.searchParams.get('estado') || '';
     const estado_pago = url.searchParams.get('estado_pago') || '';
     const search = url.searchParams.get('search') || '';
+    const fecha_inicio = url.searchParams.get('fecha_inicio') || '';
+    const fecha_fin = url.searchParams.get('fecha_fin') || '';
 
     const params = new URLSearchParams();
     if (estado && estado !== 'Todos') params.append('estado', estado);
     if (estado_pago && estado_pago !== 'Todos') params.append('estado_pago', estado_pago);
     if (search) params.append('search', search);
+    if (fecha_inicio) params.append('fecha_inicio', fecha_inicio);
+    if (fecha_fin) params.append('fecha_fin', fecha_fin);
 
     try {
         const response = await fetch(`http://localhost:3000/api/ventas?${params.toString()}`);
@@ -34,12 +38,14 @@ export const load: PageLoad = async ({ fetch, url }) => {
         }
         const orders: Order[] = await response.json();
         return {
-            orders
+            orders,
+            filtros: { estado, estado_pago, search, fecha_inicio, fecha_fin }
         };
     } catch (error) {
         console.error('Error loading orders:', error);
         return {
-            orders: []
+            orders: [],
+            filtros: { estado: '', estado_pago: '', search: '', fecha_inicio: '', fecha_fin: '' }
         };
     }
 };
