@@ -295,14 +295,68 @@
 		}
 	}
 	
+	// Filters
+	let searchQuery = '';
+	let filterStatus = 'Todos';
+	let filterPaymentStatus = 'Todos';
+	let filterDateFrom = '';
+	let filterDateTo = '';
+	
+	// Filtered orders
+	$: filteredOrders = orders.filter(order => {
+		// Search filter
+		if (searchQuery) {
+			const query = searchQuery.toLowerCase();
+			const matchesSearch = 
+				order.numero_pedido?.toLowerCase().includes(query) ||
+				order.nombre_usuario?.toLowerCase().includes(query) ||
+				order.email_usuario?.toLowerCase().includes(query);
+			if (!matchesSearch) return false;
+		}
+		
+		// Status filter
+		if (filterStatus !== 'Todos' && order.estado?.toLowerCase() !== filterStatus.toLowerCase()) {
+			return false;
+		}
+		
+		// Payment status filter
+		if (filterPaymentStatus !== 'Todos' && order.estado_pago?.toLowerCase() !== filterPaymentStatus.toLowerCase()) {
+			return false;
+		}
+		
+		// Date filters (simplified - you can enhance this)
+		if (filterDateFrom && order.fecha_pedido) {
+			const orderDate = new Date(order.fecha_pedido);
+			const fromDate = new Date(filterDateFrom);
+			if (orderDate < fromDate) return false;
+		}
+		
+		if (filterDateTo && order.fecha_pedido) {
+			const orderDate = new Date(order.fecha_pedido);
+			const toDate = new Date(filterDateTo);
+			if (orderDate > toDate) return false;
+		}
+		
+		return true;
+	});
+	
+	function clearFilters() {
+		searchQuery = '';
+		filterStatus = 'Todos';
+		filterPaymentStatus = 'Todos';
+		filterDateFrom = '';
+		filterDateTo = '';
+		currentPage = 1;
+	}
+	
 	// Pagination
 	let currentPage = 1;
 	let itemsPerPage = 10;
 	
-	$: totalPages = Math.ceil(orders.length / itemsPerPage);
-	$: paginatedOrders = orders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+	$: totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+	$: paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 	$: startIndex = (currentPage - 1) * itemsPerPage + 1;
-	$: endIndex = Math.min(currentPage * itemsPerPage, orders.length);
+	$: endIndex = Math.min(currentPage * itemsPerPage, filteredOrders.length);
 	
 	function goToPage(page: number) {
 		if (page >= 1 && page <= totalPages) {
@@ -371,13 +425,13 @@
 <div class="text-[#617589] dark:text-gray-400 flex border-none bg-background-light dark:bg-background-dark items-center justify-center pl-4 rounded-l-lg border-r-0">
 <span class="material-symbols-outlined">search</span>
 </div>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-background-light dark:bg-background-dark h-full placeholder:text-[#617589] dark:placeholder:text-gray-500 px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal" placeholder="Buscar por número de pedido, cliente, email..."/>
+<input bind:value={searchQuery} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-background-light dark:bg-background-dark h-full placeholder:text-[#617589] dark:placeholder:text-gray-500 px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal" placeholder="Buscar por número de pedido, cliente, email..."/>
 </div>
 </label>
 </div>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Estado del Pedido</p>
-<select class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
+<select bind:value={filterStatus} class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
 <option>Todos</option>
 <option>Pendiente</option>
 <option>Confirmado</option>
@@ -389,7 +443,7 @@
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Estado de Pago</p>
-<select class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
+<select bind:value={filterPaymentStatus} class="form-select flex w-full min-w-0 flex-1 overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] px-3 text-sm font-normal">
 <option>Todos</option>
 <option>Pendiente</option>
 <option>Completado</option>
@@ -400,23 +454,23 @@
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Fecha desde</p>
 <div class="relative">
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 pl-10 text-sm font-normal" placeholder="DD/MM/AAAA" type="text"/>
+<input bind:value={filterDateFrom} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 pl-10 text-sm font-normal" type="date"/>
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">calendar_today</span>
 </div>
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium leading-normal pb-2 dark:text-gray-300">Fecha hasta</p>
 <div class="relative">
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 pl-10 text-sm font-normal" placeholder="DD/MM/AAAA" type="text"/>
+<input bind:value={filterDateTo} class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111418] dark:text-gray-200 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary/50 h-12 placeholder:text-[#617589] dark:placeholder:text-gray-500 p-3 pl-10 text-sm font-normal" type="date"/>
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">calendar_today</span>
 </div>
 </label>
 </div>
 <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-transparent text-gray-600 dark:text-gray-300 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-800">
+<button on:click={clearFilters} class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-transparent text-gray-600 dark:text-gray-300 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-800">
 <span class="truncate">Limpiar filtros</span>
 </button>
-<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<button on:click={() => currentPage = 1} class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
 <span class="truncate">Aplicar filtros</span>
 </button>
 </div>
@@ -477,7 +531,7 @@ No se encontraron pedidos
 </div>
 <nav aria-label="Table navigation" class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-3 md:space-y-0 p-4">
 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-	Mostrando <span class="font-semibold text-gray-900 dark:text-white">{startIndex}-{endIndex}</span> de <span class="font-semibold text-gray-900 dark:text-white">{orders.length}</span> resultados
+	Mostrando <span class="font-semibold text-gray-900 dark:text-white">{startIndex}-{endIndex}</span> de <span class="font-semibold text-gray-900 dark:text-white">{filteredOrders.length}</span> resultados
 </span>
 <div class="flex items-center gap-4">
 <div class="flex items-center gap-2 text-sm">

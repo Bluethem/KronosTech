@@ -51,6 +51,10 @@
   let processingDecision = false;
   let decision = '';
   let adminNotes = '';
+  
+  // PDF libraries
+  let jsPDF: any;
+  let autoTable: any;
 
   const API_BASE = 'http://localhost:3000';
 
@@ -242,10 +246,149 @@
     fetchReembolsos();
   }
 
-  onMount(() => {
+  onMount(async () => {
+    // Dynamically import jsPDF and autoTable
+    const jsPDFModule = await import('jspdf');
+    jsPDF = jsPDFModule.default;
+    const autoTableModule = await import('jspdf-autotable');
+    autoTable = autoTableModule.default;
+    
     fetchStats();
     fetchReembolsos();
   });
+  
+  function generatePDFReport() {
+    if (!jsPDF || !autoTable) {
+      alert('Cargando librería PDF...');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Header with gradient background
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    // Company name
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KronosTech', 15, 20);
+    
+    // Report title
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Reporte de Reembolsos', 15, 30);
+    
+    // Date
+    doc.setFontSize(10);
+    const currentDate = new Date().toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    doc.text(`Generado: ${currentDate}`, pageWidth - 15, 30, { align: 'right' });
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    
+    // Summary statistics
+    const totalReembolsos = reembolsos.length;
+    const solicitados = reembolsos.filter(r => r.estado?.toLowerCase() === 'solicitado').length;
+    const completados = reembolsos.filter(r => r.estado?.toLowerCase() === 'completado').length;
+    const rechazados = reembolsos.filter(r => r.estado?.toLowerCase() === 'rechazado').length;
+    
+    let yPosition = 50;
+    
+    // Summary box
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 35, 3, 3, 'F');
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen General', 20, yPosition + 8);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Pendientes: ${stats.pendientes}`, 20, yPosition + 16);
+    doc.text(`Completados (mes): ${stats.completados_mes}`, 20, yPosition + 23);
+    doc.text(`Monto Total (mes): ${formatCurrency(stats.monto_total_mes)}`, 20, yPosition + 30);
+    
+    doc.text(`Solicitados: ${solicitados}`, 80, yPosition + 16);
+    doc.text(`Completados: ${completados}`, 80, yPosition + 23);
+    doc.text(`Rechazados: ${rechazados}`, 80, yPosition + 30);
+    
+    yPosition += 45;
+    
+    // Table title
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detalle de Reembolsos', 15, yPosition);
+    
+    yPosition += 5;
+    
+    // Prepare table data
+    const tableData = reembolsos.map(reembolso => [
+      `RF${reembolso.id_reembolso}`,
+      reembolso.numero_pedido || 'N/A',
+      reembolso.nombre_cliente || 'N/A',
+      reembolso.tipo_reembolso || 'N/A',
+      formatCurrency(reembolso.monto_reembolsado),
+      reembolso.estado || 'N/A',
+      formatDate(reembolso.fecha_solicitado)
+    ]);
+    
+    // Generate table
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['ID', 'Nº Pedido', 'Cliente', 'Tipo', 'Monto', 'Estado', 'Fecha']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [50, 50, 50]
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      columnStyles: {
+        0: { cellWidth: 18 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 25 },
+        6: { cellWidth: 25 }
+      },
+      margin: { left: 15, right: 15 },
+      didDrawPage: function(data) {
+        // Footer
+        const footerY = pageHeight - 15;
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          `Página ${doc.internal.getCurrentPageInfo().pageNumber}`,
+          pageWidth / 2,
+          footerY,
+          { align: 'center' }
+        );
+        doc.text('KronosTech © 2024', 15, footerY);
+      }
+    });
+    
+    // Save the PDF
+    doc.save(`Reporte_Reembolsos_${new Date().toISOString().split('T')[0]}.pdf`);
+  }
 </script>
 
 <div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
@@ -258,6 +401,10 @@
             <p class="text-[#111418] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Gestión de Reembolsos</p>
             <p class="text-[#617589] dark:text-gray-400 text-base font-normal leading-normal">Administra y procesa las solicitudes de reembolso de los clientes.</p>
           </div>
+          <button on:click={generatePDFReport} class="flex items-center justify-center gap-2 min-w-[84px] cursor-pointer rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors" title="Descargar reporte PDF">
+            <span class="material-symbols-outlined">download</span>
+            <span class="truncate">Generar Reporte</span>
+          </button>
         </div>
 
         <!-- Stats Cards -->
