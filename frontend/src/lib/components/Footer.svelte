@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, Clock, Send, MessageCircle, Shield, CreditCard } from 'lucide-svelte';
+	import ChatbotWidget from '$lib/components/ChatbotWidget.svelte';
 	
 	let emailNewsletter = '';
 	let subscribing = false;
@@ -282,18 +283,21 @@
 		</div>
 	</div>
 	
-	<!-- WhatsApp Float Button -->
-	<a
-		href="https://wa.me/51987654321?text=Hola,%20tengo%20una%20consulta%20sobre%20KronosTech"
-		target="_blank"
-		rel="noopener noreferrer"
-		aria-label="Contactar por WhatsApp"
-		class="fixed bottom-6 right-6 z-50 p-4 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group"
-	>
-		<MessageCircle size={28} />
-		<span class="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-900 dark:bg-slate-700 text-white text-sm font-medium px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-			¿Necesitas ayuda?
-		</span>
-	</a>
+	<div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+		<ChatbotWidget />
+		<!-- WhatsApp Float Button -->
+		<a
+			href="https://wa.me/51900480093?text=Hola,%20tengo%20una%20consulta%20sobre%20KronosTech"
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="Contactar por WhatsApp"
+			class="p-4 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group"
+		>
+			<MessageCircle size={28} />
+			<span class="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-900 dark:bg-slate-700 text-white text-sm font-medium px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+				¿Necesitas ayuda?
+			</span>
+		</a>
+	</div>
 </footer>
 
